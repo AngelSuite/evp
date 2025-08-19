@@ -9,11 +9,11 @@ submissionType = "independent"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-hopkins-evp-spec-04"
+value = "draft-hopkins-evp-spec-05"
 stream = "independent"
 status = "informational"
 
-date = 2025-07-27T00:00:00Z
+date = 2025-08-19T00:00:00Z
 
 [[author]]
 initials="L."
