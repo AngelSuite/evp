@@ -1,66 +1,25 @@
-# EvidenceAngel
+# Evidence Packages (EVP)
 
-EvidenceAngel is a new tool in the Angel-suite to collect test evidence from
-both manual and automated testing.
+Taking evidence is a key part of any software testing process. This
+library works with evidence packages, defined in Internet Draft
+[draft-hopkins-evp-spec].
 
-EvidenceAngel takes and stores evidence in the forms of:
+This specification is currently in review, so this library is not yet
+at version 1.0.0.
 
-- Text
-- Images
-- Files
-- HTTP requests and responses
-- potentially more in the future…
+## Usage
 
-This evidence is stored in a single file, saving you the hassle of managing lots
-of files scattered around!
-
-Don't worry! Not everyone needs to use EvidenceAngel! EvidenceAngel allows data
-to be exported into a variety of interchange formats:
-
-- Tabbed HTML document
-- Excel workbook (with sheets per test case)
-
-## Installation
-
-### Prerequisites (Windows)
-
-There are no prerequisites for Windows.
-
-### Prerequisites (Mac)
-
-- GTK4
-- Adwaita
-
-The easiest way to install these is via [Homebrew](https://brew.sh):
+For documentation for this library, please add it to your project, then
+use the following command to generate documentation, including for this
+library.
 
 ```sh
-$ brew install gtk4 libadwaita
+$ cargo doc --open
 ```
 
-### Prerequisites (Linux)
+It may also be useful to refer to [EvidenceAngel] and [TestAngel],
+which both make use of this library.
 
-- GTK4
-- Adwaita
-
-Installation procedure for these will vary by system. If you already use GNOME
-as a desktop environment, you will almost certainly already have these
-prerequisites.
-
-### …via the AngelSuite Installer
-
-If you prefer an option that provides easy updating in the future, the
-[AngelSuite Installer](https://github.com/lilopkins/angelsuite-installer) is the
-way to go.
-
-### …manually
-
-If you prefer to install manually, you can download a suitable package from the
-[GitHub Releases](https://github.com/lilopkins/angelsuite-installer/releases).
-
-## Branding
-
-If you wish to apply company branding to the program, please set the
-`EA_BRAND_IMAGE` environment variable to an absolute path to a brand
-image. This will apply the brand in the UI and in exported files. An
-image with a ratio of 4:1 (width:height) works best. You can also set
-`EA_BRAND_NAME` to set image alt text to your company name.
+[draft-hopkins-evp-spec]: https://hpkns.uk/evp
+[EvidenceAngel]: https://github.com/AngelSuite/EvidenceAngel
+[TestAngel]: https://github.com/AngelSuite/TestAngel
