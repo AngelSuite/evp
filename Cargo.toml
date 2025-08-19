@@ -1,0 +1,36 @@
+[package]
+name = "evp"
+description = "Library to work with evidence packages (*.evp)."
+version = "1.0.0-beta.1" # 1.0.0 here means the I-D is accepted or concluded
+edition = "2024"
+license = "GPL-3.0-or-later"
+authors = [
+    "Lily Hopkins <lily@hpkns.uk>",
+    "Eden Turner <somebirb7190@gmail.com>",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["exporter-html", "exporter-zip-of-files"]
+exporter-excel = ["dep:rust_xlsxwriter"]
+exporter-html = ["dep:build_html", "dep:html-escape"]
+exporter-zip-of-files = []
+
+[dependencies]
+angelmark = { path = "angelmark" }
+base64 = "0.22.1"
+build_html = { version = "2.5.0", optional = true }
+chrono = { version = "0.4.38", features = ["serde"] }
+getset = "0.1.2"
+html-escape = { version = "0.2.13", optional = true }
+infer = "0.19.0"
+jsonschema = "0.31.0"
+rust_xlsxwriter = { version = "0.89.1", features = ["chrono"], optional = true }
+serde = { version = "1.0.200", features = ["derive"] }
+serde_json = "1.0.116"
+sha256 = "1.5.0"
+thiserror = "2.0.4"
+tracing = "0.1.41"
+uuid = { version = "1.8.0", features = ["v4", "fast-rng", "serde"] }
+zip = "4.3.0"
