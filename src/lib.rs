@@ -12,7 +12,7 @@
 //! from both manual and automated testing.
 
 /// Angelmark is a Markdown-like markup language for EVP Rich Text.
-/// 
+///
 /// Eventually, this will be replaced with another solution that
 /// supports Markdown more completely.
 pub mod angelmark;

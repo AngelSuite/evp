@@ -24,7 +24,7 @@ mod traits;
 pub use traits::EqIgnoringSpan;
 
 use getset::Getters;
-use pest::{iterators::Pair, Parser, Span};
+use pest::{Parser, Span, iterators::Pair};
 use regex::Regex;
 
 /// A parsed span with an owned clone of it's matched text
@@ -138,13 +138,15 @@ pub fn parse_angelmark<S: AsRef<str>>(input: S) -> Result<Vec<AngelmarkLine>, Er
 }
 
 fn parse_text_content(pair: Pair<Rule>) -> AngelmarkText {
-    assert!([
-        Rule::TextBold,
-        Rule::TextItalic,
-        Rule::TextMonospace,
-        Rule::RawText,
-    ]
-    .contains(&pair.as_rule()));
+    assert!(
+        [
+            Rule::TextBold,
+            Rule::TextItalic,
+            Rule::TextMonospace,
+            Rule::RawText,
+        ]
+        .contains(&pair.as_rule())
+    );
 
     let span = pair.as_span();
     match pair.as_rule() {

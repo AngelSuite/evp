@@ -267,7 +267,9 @@ fn create_test_case_sheet(
 
                 if let Ok(mut rich_text) = parse_angelmark(&text) {
                     if !matches!(rich_text.last(), Some(AngelmarkLine::Newline(_))) {
-                        rich_text.push(AngelmarkLine::Newline(crate::angelmark::OwnedSpan::default()));
+                        rich_text.push(AngelmarkLine::Newline(
+                            crate::angelmark::OwnedSpan::default(),
+                        ));
                     }
                     let mut line_buffer: Vec<(Format, String)> = vec![];
                     for line in rich_text {

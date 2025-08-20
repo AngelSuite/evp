@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use getset::Getters;
 use pest::iterators::Pair;
 
-use super::{lexer::Rule, AngelmarkText, EqIgnoringSpan, OwnedSpan};
+use super::{AngelmarkText, EqIgnoringSpan, OwnedSpan, lexer::Rule};
 
 /// A table
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Getters)]
