@@ -56,9 +56,9 @@ impl Metadata {
 
         if make_primary {
             // Make all other fields not primary
-            custom_fields
-                .iter_mut()
-                .for_each(|(_key, item)| item.primary = false);
+            for (_key, item) in custom_fields.iter_mut() {
+                item.primary = false;
+            }
         }
 
         let new_id = id.unwrap_or_else(|| Uuid::new_v4().to_string());

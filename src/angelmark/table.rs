@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use getset::Getters;
 use pest::iterators::Pair;
 
-use crate::{lexer::Rule, AngelmarkText, EqIgnoringSpan, OwnedSpan};
+use super::{AngelmarkText, EqIgnoringSpan, OwnedSpan, lexer::Rule};
 
 /// A table
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Getters)]
@@ -41,6 +41,7 @@ impl AngelmarkTable {
     }
 }
 
+/// Get the width of an [`AngelmarkText`] item
 fn get_text_width(text: &AngelmarkText) -> usize {
     match text {
         AngelmarkText::Bold(text, _span)
@@ -254,7 +255,7 @@ impl From<Pair<'_, Rule>> for AngelmarkTableCell {
         let span = value.as_span();
         let mut content = vec![];
         for pair in value.into_inner() {
-            content.push(crate::parse_text_content(pair));
+            content.push(super::parse_text_content(pair));
         }
 
         Self {

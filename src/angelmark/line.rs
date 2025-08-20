@@ -1,4 +1,4 @@
-use crate::{AngelmarkTable, AngelmarkText, EqIgnoringSpan, OwnedSpan};
+use super::{AngelmarkTable, AngelmarkText, EqIgnoringSpan, OwnedSpan};
 
 /// A line of markup in AngelMark
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

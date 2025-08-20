@@ -146,10 +146,10 @@ fn add_test_case_to_zip(
 
     let mut filename_count = HashMap::new();
     for ev in test_case.evidence() {
-        if let EvidenceKind::File = ev.kind() {
-            if let Some(filename) = ev.original_filename() {
-                filename_count.insert(filename, filename_count.get(filename).unwrap_or(&0) + 1);
-            }
+        if let EvidenceKind::File = ev.kind()
+            && let Some(filename) = ev.original_filename()
+        {
+            filename_count.insert(filename, filename_count.get(filename).unwrap_or(&0) + 1);
         }
     }
 

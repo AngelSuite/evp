@@ -254,9 +254,8 @@ impl EvidencePackage {
             } else {
                 // Otherwise pull from previous package.
                 // Consider moving this to not load entire file on move.
-                if maybe_old_archive.is_some() {
+                if let Some(old_archive) = &mut maybe_old_archive {
                     tracing::debug!("Migrating media with hash {hash} from old file");
-                    let old_archive = maybe_old_archive.as_mut().unwrap();
                     let res = old_archive.by_name(&format!("media/{hash}"));
                     match res {
                         Err(ZipError::FileNotFound) => {
