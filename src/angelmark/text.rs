@@ -1,4 +1,4 @@
-use crate::{EqIgnoringSpan, OwnedSpan};
+use super::{EqIgnoringSpan, OwnedSpan};
 
 /// Textual content
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

@@ -67,18 +67,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "angelmark"
-version = "0.0.0"
-dependencies = [
- "getset",
- "pest",
- "pest_derive",
- "regex",
- "thiserror",
- "tracing",
-]
-
-[[package]]
 name = "arbitrary"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -371,7 +359,6 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 name = "evp"
 version = "1.0.0-beta.1"
 dependencies = [
- "angelmark",
  "base64",
  "build_html",
  "chrono",
@@ -379,6 +366,9 @@ dependencies = [
  "html-escape",
  "infer",
  "jsonschema",
+ "pest",
+ "pest_derive",
+ "regex",
  "rust_xlsxwriter",
  "serde",
  "serde_json",

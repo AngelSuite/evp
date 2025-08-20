@@ -1,31 +1,36 @@
 #![deny(unsafe_code)]
 #![warn(clippy::pedantic)]
 #![warn(missing_docs)]
-#![doc = include_str!("../README.md")]
 
+/// Errors from AngelMark
 mod error;
 pub use error::Error;
 
+/// The AngelMark lexer
 mod lexer;
 use lexer::Rule;
 
+/// Abstracting a line
 mod line;
 pub use line::AngelmarkLine;
 
+/// Table structs and behaviours
 mod table;
 pub use table::{
     AngelmarkTable, AngelmarkTableAlignment, AngelmarkTableAlignmentCell,
     AngelmarkTableAlignmentRow, AngelmarkTableCell, AngelmarkTableRow,
 };
 
+/// Text structs and behaviours
 mod text;
 pub use text::AngelmarkText;
 
+/// Traits for Angelmark
 mod traits;
 pub use traits::EqIgnoringSpan;
 
 use getset::Getters;
-use pest::{iterators::Pair, Parser, Span};
+use pest::{Parser, Span, iterators::Pair};
 use regex::Regex;
 
 /// A parsed span with an owned clone of it's matched text
@@ -138,14 +143,17 @@ pub fn parse_angelmark<S: AsRef<str>>(input: S) -> Result<Vec<AngelmarkLine>, Er
     Ok(content)
 }
 
+/// Parse rules into an [`AngelmarkText`] struct.
 fn parse_text_content(pair: Pair<Rule>) -> AngelmarkText {
-    assert!([
-        Rule::TextBold,
-        Rule::TextItalic,
-        Rule::TextMonospace,
-        Rule::RawText,
-    ]
-    .contains(&pair.as_rule()));
+    assert!(
+        [
+            Rule::TextBold,
+            Rule::TextItalic,
+            Rule::TextMonospace,
+            Rule::RawText,
+        ]
+        .contains(&pair.as_rule())
+    );
 
     let span = pair.as_span();
     match pair.as_rule() {
@@ -167,6 +175,7 @@ fn parse_text_content(pair: Pair<Rule>) -> AngelmarkText {
     }
 }
 
+/// Unescape a string, replacing \\x with x
 fn unescape_str(s: &str) -> String {
     let r = Regex::new(r"\\(.)").unwrap();
     r.replace_all(s, "$1").into_owned()
@@ -188,7 +197,7 @@ mod tests {
 
     #[test]
     fn parse_test_document() {
-        let parsed_doc = parse_angelmark(include_str!("../tests/angelmark.md")).unwrap();
+        let parsed_doc = parse_angelmark(include_str!("../../tests/angelmark.md")).unwrap();
 
         let expected = vec![
             AngelmarkLine::Heading1(
