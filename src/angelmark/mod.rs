@@ -1,7 +1,6 @@
 #![deny(unsafe_code)]
 #![warn(clippy::pedantic)]
 #![warn(missing_docs)]
-#![doc = include_str!("../README.md")]
 
 mod error;
 pub use error::Error;
@@ -188,7 +187,7 @@ mod tests {
 
     #[test]
     fn parse_test_document() {
-        let parsed_doc = parse_angelmark(include_str!("../tests/angelmark.md")).unwrap();
+        let parsed_doc = parse_angelmark(include_str!("../../tests/angelmark.md")).unwrap();
 
         let expected = vec![
             AngelmarkLine::Heading1(
