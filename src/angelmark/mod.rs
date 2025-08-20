@@ -2,24 +2,30 @@
 #![warn(clippy::pedantic)]
 #![warn(missing_docs)]
 
+/// Errors from AngelMark
 mod error;
 pub use error::Error;
 
+/// The AngelMark lexer
 mod lexer;
 use lexer::Rule;
 
+/// Abstracting a line
 mod line;
 pub use line::AngelmarkLine;
 
+/// Table structs and behaviours
 mod table;
 pub use table::{
     AngelmarkTable, AngelmarkTableAlignment, AngelmarkTableAlignmentCell,
     AngelmarkTableAlignmentRow, AngelmarkTableCell, AngelmarkTableRow,
 };
 
+/// Text structs and behaviours
 mod text;
 pub use text::AngelmarkText;
 
+/// Traits for Angelmark
 mod traits;
 pub use traits::EqIgnoringSpan;
 
@@ -137,6 +143,7 @@ pub fn parse_angelmark<S: AsRef<str>>(input: S) -> Result<Vec<AngelmarkLine>, Er
     Ok(content)
 }
 
+/// Parse rules into an [`AngelmarkText`] struct.
 fn parse_text_content(pair: Pair<Rule>) -> AngelmarkText {
     assert!(
         [
@@ -168,6 +175,7 @@ fn parse_text_content(pair: Pair<Rule>) -> AngelmarkText {
     }
 }
 
+/// Unescape a string, replacing \\x with x
 fn unescape_str(s: &str) -> String {
     let r = Regex::new(r"\\(.)").unwrap();
     r.replace_all(s, "$1").into_owned()

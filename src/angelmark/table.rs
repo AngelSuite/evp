@@ -41,6 +41,7 @@ impl AngelmarkTable {
     }
 }
 
+/// Get the width of an [`AngelmarkText`] item
 fn get_text_width(text: &AngelmarkText) -> usize {
     match text {
         AngelmarkText::Bold(text, _span)
