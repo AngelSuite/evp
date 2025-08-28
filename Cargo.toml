@@ -1,13 +1,14 @@
 [package]
 name = "evp"
 description = "Library to work with evidence packages (*.evp)."
-version = "1.0.0-beta.1" # 1.0.0 here means the I-D is accepted or concluded
+version = "1.0.0-beta.2" # 1.0.0 here means the I-D is accepted or concluded
 edition = "2024"
 license = "GPL-3.0-or-later"
 authors = [
     "Lily Hopkins <lily@hpkns.uk>",
     "Eden Turner <somebirb7190@gmail.com>",
 ]
+rust-version = "1.88.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -24,8 +25,8 @@ chrono = { version = "0.4.38", features = ["serde"] }
 getset = "0.1.2"
 html-escape = { version = "0.2.13", optional = true }
 infer = "0.19.0"
-jsonschema = "0.31.0"
-rust_xlsxwriter = { version = "0.89.1", features = ["chrono"], optional = true }
+jsonschema = "0.32.1"
+rust_xlsxwriter = { version = "0.90.0", features = ["chrono"], optional = true }
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = "1.0.116"
 sha256 = "1.5.0"
@@ -38,3 +39,6 @@ zip = "4.3.0"
 pest = "2.7.15"
 pest_derive = "2.7.15"
 regex = "1.11.1"
+
+[target.'cfg(windows)'.dependencies]
+winapi = "0.3.9"
