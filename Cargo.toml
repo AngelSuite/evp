@@ -25,7 +25,7 @@ chrono = { version = "0.4.38", features = ["serde"] }
 getset = "0.1.2"
 html-escape = { version = "0.2.13", optional = true }
 infer = "0.19.0"
-jsonschema = "0.32.1"
+jsonschema = "0.33.0"
 rust_xlsxwriter = { version = "0.90.0", features = ["chrono"], optional = true }
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = "1.0.116"
@@ -33,12 +33,14 @@ sha256 = "1.5.0"
 thiserror = "2.0.4"
 tracing = "0.1.41"
 uuid = { version = "1.8.0", features = ["v4", "fast-rng", "serde"] }
-zip = "4.3.0"
+zip = "5.1.1"
 
-# AngelMark
+# Remove when AngelMark deprecated
 pest = "2.7.15"
+# Remove when AngelMark deprecated
 pest_derive = "2.7.15"
+# Remove when AngelMark deprecated
 regex = "1.11.1"
 
 [target.'cfg(windows)'.dependencies]
-winapi = "0.3.9"
+winapi = { version = "0.3.9", features = ["fileapi", "winnt"] }
