@@ -1,5 +1,5 @@
 %%%
-title = "Evidence Package Format Specification"
+title = "Evidence Package Format Specification: Storing Evidence from Software Testing"
 abbrev = "evp-spec"
 ipr = "trust200902"
 area = ""
@@ -34,10 +34,12 @@ fullname="Eden Turner"
 
 .# Abstract
 
-Taking evidence is a key part of any software testing process. This
-specification defines a format which collects evidence together and
-stores metadata and annotations in an organised fashion from both manual
-and automated testing sources.
+Taking evidence is a key part of any robust software testing process.
+This specification defines a format which collects evidence together
+and stores metadata and annotations in an organised fashion from both
+manual and automated testing sources.
+
+This work is not a standard and does not enjoy community consensus.
 
 {mainmatter}
 
@@ -46,7 +48,7 @@ and automated testing sources.
 ## Purpose
 
 The purpose of this specification is to define a format for storage of
-test evidence that:
+evidence produced as the result of software testing that:
 
 * allows for basic collation of evidence;
 * can store any kind of file type that might be produced;
@@ -57,8 +59,8 @@ test evidence that:
 
 The format does not attempt to:
 
-* act as an captioned archiving solution for other purposes, even if it
-  may be suitable for them.
+* act as an captioned archiving solution for other purposes outside of
+  software testing, even if it may be suitable for them.
 
 ## Intended Audience
 
