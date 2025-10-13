@@ -99,7 +99,7 @@ when, and only when, they appear in all capitals, as shown here.
 
 An evidence package is a structured ZIP archive [@!zip]. It **MUST**
 contain the file "manifest.json", and the directories "media" and
-"testcases" internally within the ZIP archive. This structure does not
+"test_cases" internally within the ZIP archive. This structure does not
 need to be represented outside of the ZIP archive and as such the
 internal structure does not need to be understood by an end-user of any
 tool that works with evidence packages.
@@ -126,7 +126,7 @@ of evidence. It **MUST** be a UTF-8 encoded, LF line ended, JSON
 |------------|-----------|------|---|---|
 | $schema    | Optional  | String | (#manifest-schema) | The $schema element **MAY** point to a copy of the schema for the manifest. |
 | metadata   | Mandatory | Object | (#manifest-metadata) | The metadata element stores package metadata. |
-| custom_test_case_metadata | Mandatory | Object | (#manifest-custom-metadata) | Custom metadata fields for test cases in this package. |
+| custom_metadata | Mandatory | Object | (#manifest-custom-metadata) | Custom metadata fields for test cases in this package. |
 | media      | Mandatory | Array | (#manifest-media) | The media element stores a list of media files that are stored in this evidence package. |
 | test_cases | Mandatory | Array | (#manifest-test-cases) | The test_cases element stores a list of test cases. |
 
@@ -134,13 +134,13 @@ See an example manifest.json file in (#example-manifest).
 
 ### "$schema" Element {#manifest-schema}
 
-The "$schema" element **MAY** optionally be provided to point to a JSON
-schema describing the structure of the file. This is typically most
-useful for validation, however it **MUST** be acceptable for
-"$schema" to be missing, and this specification should be seen as the
-primary definition of structure over anything defined in "$schema".
+This element **MAY** optionally be provided to point to a JSON schema
+describing the structure of the file. This is typically most useful for
+validation, however it **MUST** be acceptable for it to be missing, and
+this specification should be seen as the primary definition of structure
+over anything defined in the linked schema.
 
-The JSON schema provided at "$schema" may give details about any
+The JSON schema provided at by this element may give details about any
 additional fields used that are not defined in this specficiation.
 
 ### "metadata" Element {#manifest-metadata}
@@ -157,7 +157,7 @@ additional fields used that are not defined in this specficiation.
 | name    | Mandatory | String | The author's name. |
 | email   | Optional  | String/Null | The author's email address, although format is not verified. |
 
-### "custom_test_case_metadata" Element {#manifest-custom-metadata}
+### "custom_metadata" Element {#manifest-custom-metadata}
 
 Elements within this object will become custom metadata properties for
 test cases in this package. Each object **MUST** have the following
@@ -193,7 +193,7 @@ it.
 
 | Element    | Condition | Type | Section | Description |
 |------------|-----------|------|---------|---|
-| id         | Mandatory | String | | The UUID of the test case. If present here, there **MUST** be an associated test case file in the "testcases" directory of the package with the name "<UUID>.json". |
+| id         | Mandatory | String | | The UUID of the test case. If present here, there **MUST** be an associated test case file in the "test_cases" directory of the package with the name "<UUID>.json". |
 | sha256_checksum | Mandatory | String | | The SHA256 checksum of the corresponding JSON file, "<UUID>.json". |
 | attestations | Mandatory | Array of Strings | (#manifest-test-case-attestations) | An array of attestations over this test case. |
 
@@ -237,7 +237,7 @@ This can now be signed and the original manifest can be modified:
 }
 ~~~
 
-## "testcases" Directory
+## "test_cases" Directory
 
 The test cases directory stores the manifests for each test case within
 this evidence package.
@@ -256,15 +256,15 @@ A test case present here **MUST** have a valid entry in the manifest
 
 See an example <uuid>.json file in (#example-test-case).
 
-### "$schema" Element {#test-case-schema}
+#### "$schema" Element {#test-case-schema}
 
-The "$schema" element **MAY** optionally be provided to point to a JSON
-schema describing the structure of the file. This is typically most
-useful for validation, however it **MUST** be acceptable for
-"$schema" to be missing, and this specification should be seen as the
-primary definition of structure over anything defined in "$schema".
+This element **MAY** optionally be provided to point to a JSON schema
+describing the structure of the file. This is typically most useful for
+validation, however it **MUST** be acceptable for it to be missing, and
+this specification should be seen as the primary definition of structure
+over anything defined in the linked schema.
 
-The JSON schema provided at "$schema" may give details about any
+The JSON schema provided at by this element may give details about any
 additional fields used that are not defined in this specficiation.
 
 #### "metadata" Element {#test-case-metadata}
@@ -273,11 +273,11 @@ additional fields used that are not defined in this specficiation.
 |--------------------|-----------|------|---|
 | title              | Mandatory | String | The title of the test case. |
 | execution_datetime | Mandatory | String | The ISO8601 date and time of the execution of this test case starting. |
-| passed             | Mandatory | Enumerated | The state of the test case, if present **MUST** be either the string "pass" or "fail", or null. If absent, it **MUST** be interpreted as null. |
+| passed             | Optional | Enumerated | The state of the test case, if present **MUST** be either the string "pass" or "fail", or null. If absent, it **MUST** be interpreted as null. |
 | custom             | Mandatory | Object | Custom metadata values. |
 
 The "custom" field is used to add custom metadata that has been
-specified in the package manifest's "custom_test_case_metadata" field.
+specified in the package manifest's "custom_metadata" field.
 If a value is specified in "custom", it **MUST** be present in the
 package manifest, but all values in the package manifest do not need to
 be present here. All values **MUST** be strings and are stored as a
@@ -434,7 +434,7 @@ example.evp
  |- manifest.json
  |- media
  |   \- 203073da0b36a5921f2914e2093abcae7eb987846f405b438c25792bab1617fa
- \- testcases
+ \- test_cases
      \- eabb5d31-a958-4609-ac98-83365e14d18b.json
 ~~~
 
@@ -454,7 +454,7 @@ example.evp
       }
     ]
   },
-  "custom_test_case_metadata": {
+  "custom_metadata": {
     "example": {
       "name": "Example Metadata Field",
       "description": "A field showing that custom fields can be added",

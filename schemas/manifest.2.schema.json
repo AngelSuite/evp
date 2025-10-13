@@ -38,7 +38,7 @@
       },
       "required": ["title", "authors"]
     },
-    "custom_test_case_metadata": {
+    "custom_metadata": {
       "type": "object",
       "description": "Custom metadata fields for test cases",
       "patternProperties": {
