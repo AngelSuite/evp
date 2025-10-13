@@ -91,9 +91,23 @@
             "type": "string",
             "format": "uuid",
             "description": "The UUID of the test case. If present here, there MUST be an associated test case file in the `testcases` directory of the package with the name `<UUID>.json`."
+          },
+          "sha256_checksum": {
+            "type": "string",
+            "description": "The SHA256 checksum of the corresponding JSON file, \"<UUID>.json\".",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "attestations": {
+            "type": "array",
+            "description": "An array of attestations over this test case.",
+            "items": {
+              "type": "string",
+              "description": "The elements within the \"attestations\" array MUST be base64 encoded strings of OpenPGP [@!RFC9580] signatures. The signatures should be signing a copy of this manifest entry, excluding \"attestations\" itself, having been processed into JSON canonical format as defined in RFC8785.",
+              "pattern": "^[A-z0-9+/]*$"
+            }
           }
         },
-        "required": ["id"]
+        "required": ["id", "sha256_checksum", "attestations"]
       }
     }
   },

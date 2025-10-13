@@ -13,7 +13,7 @@ value = "draft-hopkins-evp-spec-05"
 stream = "independent"
 status = "informational"
 
-date = 2025-08-19T00:00:00Z
+date = 2025-10-13T00:00:00Z
 
 [[author]]
 initials="L."
@@ -54,7 +54,9 @@ evidence produced as the result of software testing that:
 * can store any kind of file type that might be produced;
 * stores data compressed;
 * stores related evidence together, but allows for dividing up by test
-  case, and;
+  case;
+* allows test evidence to be attested with a tracable list of attestors,
+  and;
 * is built upon widely available standards.
 
 The format does not attempt to:
@@ -83,7 +85,7 @@ situations where writing an implementation may be desirable:
 
 ## Changes from Previous Versions
 
-This document forms the original specification.
+This document forms the original accepted specification.
 
 # Terminology
 
@@ -117,18 +119,29 @@ See (#example-archive) for an example of the file's internal structure.
 ## "manifest.json" File
 
 The manifest.json file defines metadata relating to the entire package
-of evidence. It **MUST** be a JSON [@!RFC8259] file with the following
-elements:
+of evidence. It **MUST** be a UTF-8 encoded, LF line ended, JSON
+[@!RFC8259] file with the following elements:
 
 | Element    | Condition | Type | Section | Description |
 |------------|-----------|------|---|---|
-| $schema    | Optional  | String | | The $schema element **MAY** point to a copy of the schema for the manifest. |
+| $schema    | Optional  | String | (#manifest-schema) | The $schema element **MAY** point to a copy of the schema for the manifest. |
 | metadata   | Mandatory | Object | (#manifest-metadata) | The metadata element stores package metadata. |
 | custom_test_case_metadata | Mandatory | Object | (#manifest-custom-metadata) | Custom metadata fields for test cases in this package. |
 | media      | Mandatory | Array | (#manifest-media) | The media element stores a list of media files that are stored in this evidence package. |
 | test_cases | Mandatory | Array | (#manifest-test-cases) | The test_cases element stores a list of test cases. |
 
 See an example manifest.json file in (#example-manifest).
+
+### "$schema" Element {#manifest-schema}
+
+The "$schema" element **MAY** optionally be provided to point to a JSON
+schema describing the structure of the file. This is typically most
+useful for validation, however it **MUST** be acceptable for
+"$schema" to be missing, and this specification should be seen as the
+primary definition of structure over anything defined in "$schema".
+
+The JSON schema provided at "$schema" may give details about any
+additional fields used that are not defined in this specficiation.
 
 ### "metadata" Element {#manifest-metadata}
 
@@ -178,9 +191,51 @@ it.
 
 ### "test_cases" Array Element {#manifest-test-cases}
 
-| Element    | Condition | Type | Description |
-|------------|-----------|------|---|
-| id         | Mandatory | String | The UUID of the test case. If present here, there **MUST** be an associated test case file in the "testcases" directory of the package with the name "<UUID>.json". |
+| Element    | Condition | Type | Section | Description |
+|------------|-----------|------|---------|---|
+| id         | Mandatory | String | | The UUID of the test case. If present here, there **MUST** be an associated test case file in the "testcases" directory of the package with the name "<UUID>.json". |
+| sha256_checksum | Mandatory | String | | The SHA256 checksum of the corresponding JSON file, "<UUID>.json". |
+| attestations | Mandatory | Array of Strings | (#manifest-test-case-attestations) | An array of attestations over this test case. |
+
+#### "attestations" Array {#manifest-test-case-attestations}
+
+The elements within the "attestations" array **MUST** be base64 encoded
+strings of OpenPGP [@!RFC9580] signatures. The signatures should be
+signing a copy of this manifest entry, excluding "attestations" itself,
+having been processed into JSON canonical format as defined in
+[@!RFC8785].
+
+As a worked example, a manifest test_cases entry may start off like
+this:
+
+~~~json
+{
+  "id": "7928de11-8de8-4bfe-b5b7-cbf07c7066d9",
+  "sha256_checksum": "a2394af8d2b4e0c9ba66e797fd6060f4e6932e126f781157cdd2dda1c08b4b6f",
+  "attestations": [],
+  "some_other_value": "Added from somewhere other than this specification!"
+}
+~~~
+
+This should then have the "attestations" array removed and should be
+canonicalised:
+
+~~~json
+{"id":"7928de11-8de8-4bfe-b5b7-cbf07c7066d9","sha256_checksum":"a2394af8d2b4e0c9ba66e797fd6060f4e6932e126f781157cdd2dda1c08b4b6f","some_other_value":"Added from somewhere other than this specification!"}
+~~~
+
+This can now be signed and the original manifest can be modified:
+
+~~~json
+{
+  "id": "7928de11-8de8-4bfe-b5b7-cbf07c7066d9",
+  "sha256_checksum": "a2394af8d2b4e0c9ba66e797fd6060f4e6932e126f781157cdd2dda1c08b4b6f",
+  "attestations": [
+    "owGbwMvMwMH4dr363nNHa04wnj4glMSQ8Va7t1opM0XJSsnc0sgiJdXQUBdIWuiaJKWl6iaZJpnrJielGZgnmxuYmaVYKukoFWckGpmaxSdnpCZnF5fmAjUmGhlbmiSmWaQYJZmkGiRbJiWamaWaW5qnpZgZmBmkmaSaWRobpRoamaWZWxgamponp6QYpaQkGiYbWCSZJJmlgQzNz02Nzy/JSC2KL0vMKU0FmuqYkpKaopBWlJ+rAJItB8qlKoCVKJRkJOYBicxiheKC1OTMtMzkxJLM/DxFpVquTiZ/FgZGDgZLMUWWicUSryIWnPnu39fyEuZrViaQj6VFGhiAgIWBLzcxr9RIx0jPVNtQz9BQB8hk4OIUgKm+ms7/P9xXe5oSl6nYW1fJ9S9/bhZN3br8oWev2A8R+Vs7ODd88xUxncHVvIltQXxwed3mm9xiu/+LV/oYqB1KuvI4+cittFtcj3KUpqd3RikEzfM7mcXDv+5x9lKuG4e+f2Hk8zmt9Tybf62wZL/+RzXzoMtqa4LeFUcWNBQ9X81+R6z+0J7PfOJvuC+8SetJl7B+pyj+4W/S+S0+2/LTn5fUC+jPuLTdWfD+r0kThHjbVCYk9td/6JVKmPP88A2bN+fyRDc9qH/Sv4Nr3bRDi1xbDJmKFxmenJfYOGf3cpEJG0XbrN1u7rwmvqzipljKJteU/MxUe1aHh0IzwgWXHV3XwxnAcnu/4IfWq368knX5D2XkK4ovnGdZeKft+clmubgcFUGGgKqVcYvKzr/nKZpl0adm7rvFty1XhTP7xN/UnM8Z+4ymFURfc5vvbayupqC0pDnSa93EW5MnBFSoOImE+e5TNxdnXli6uflNZsXkj8wxBgvfTxVTuX/AmCvkjHkc178tHyu2uQWtFze6+PmCXJ5B9BnjJ7ZH3ZnmLZ8rpPv03v44j6PZd0R8Wf74l7WpHc56EBrF+ZNr00J3eTOTxQIvu/7vU/1bqdCWd0HugGdVwuSoqmPa0f/v7Fl8L2bPLasPrrOyZ4Xtse3t2pDp9qpgCUfjfr26Cl57/rs8njkf3ygUJIiHFZ/5ujGrPftRce6Gpft3SbS8+gIA"
+  ],
+  "some_other_value": "Added from somewhere other than this specification!"
+}
+~~~
 
 ## "testcases" Directory
 
@@ -188,16 +243,29 @@ The test cases directory stores the manifests for each test case within
 this evidence package.
 
 Each test case is stored as a JSON file, with a UUIDv4 name [@!RFC9562].
+A test case present here **MUST** have a valid entry in the manifest
+"test_cases" array defined in (#manifest-test-cases).
 
 ### "<uuid>.json" File
 
 | Element  | Condition | Type | Section | Description |
 |----------|-----------|------|---|---|
-| $schema  | Optional  | String | | The $schema element **MAY** point to a copy of the schema for the manifest. |
+| $schema  | Optional  | String | (#test-case-schema) | The $schema element **MAY** point to a copy of the schema for the manifest. |
 | metadata | Mandatory | Object | (#test-case-metadata) | The metadata relating to this test case. |
 | evidence | Mandatory | Array | (#test-case-evidence) | The evidence within this test case. |
 
 See an example <uuid>.json file in (#example-test-case).
+
+### "$schema" Element {#test-case-schema}
+
+The "$schema" element **MAY** optionally be provided to point to a JSON
+schema describing the structure of the file. This is typically most
+useful for validation, however it **MUST** be acceptable for
+"$schema" to be missing, and this specification should be seen as the
+primary definition of structure over anything defined in "$schema".
+
+The JSON schema provided at "$schema" may give details about any
+additional fields used that are not defined in this specficiation.
 
 #### "metadata" Element {#test-case-metadata}
 
@@ -205,28 +273,29 @@ See an example <uuid>.json file in (#example-test-case).
 |--------------------|-----------|------|---|
 | title              | Mandatory | String | The title of the test case. |
 | execution_datetime | Mandatory | String | The ISO8601 date and time of the execution of this test case starting. |
-| passed             | Mandatory | String | The state of the test case, if present **MUST** be either "pass", "fail", or null. If absent, it **MUST** be interpreted as null. |
+| passed             | Mandatory | Enumerated | The state of the test case, if present **MUST** be either the string "pass" or "fail", or null. If absent, it **MUST** be interpreted as null. |
 | custom             | Mandatory | Object | Custom metadata values. |
 
 The "custom" field is used to add custom metadata that has been
 specified in the package manifest's "custom_test_case_metadata" field.
 If a value is specified in "custom", it **MUST** be present in the
 package manifest, but all values in the package manifest do not need to
-be present here. All values **MUST** be strings.
+be present here. All values **MUST** be strings and are stored as a
+simple key-value map, with the custom field ID defined in the manifest
+as the key.
 
 #### "evidence" Array Element {#test-case-evidence}
 
 | Element           | Condition | Type | Section | Description |
 |-------------------|-----------|------|---|---|
-| kind              | Mandatory | String | (#evidence-kind) | The type of data stored. |
+| kind              | Mandatory | String | (#evidence-kind) | The Internet Media Type [@!RFC2046] of data stored. |
 | value             | Mandatory | String | (#evidence-value) | The data stored within this piece of evidence. |
 | caption           | Optional  | String/Null | | An optional caption for this piece of evidence. |
 | original_filename | Optional  | String/Null | | The original filename. **MAY** be provided for Image and File evidence, **MUST NOT** be provided otherwise. |
 
 ##### "kind" {#evidence-kind}
 
-The "kind" of evidence **MUST** be one of "Text", "RichText", "Image",
-"Http", "File".
+The "kind" of evidence **MUST** be an Internet Media Type [@!RFC2046].
 
 For more information about each type, see (#kinds-of-evidence).
 
@@ -283,35 +352,43 @@ may not fit.
 
 # Kinds of Evidence {#kinds-of-evidence}
 
-Evidence packages support the following kinds of evidence:
+Evidence packages can support any valid Internet Media Type [@!RFC2046]
+as evidence. Implementors of this specification **MUST** be able to
+display the following types:
 
-| Kind       | Description                                        |
-|------------|----------------------------------------------------|
-| "Text"     | Plain text with no formatting.                     |
-| "RichText" | Text with very basic markdown support.             |
-| "Image"    | An image that should be rendered where possible.   |
-| "Http"     | An HTTP request/response pair.                     |
-| "File"     | A raw file, which may be text or binary in nature. |
+| Media Type               | Description                                      |
+|--------------------------|--------------------------------------------------|
+| text/plain               | Plain text with no formatting.                   |
+| text/markdown            | Text with markdown support.                      |
+| text/vnd.angel.http-data | An HTTP request/response pair.                   |
+| image/*                  | An image that should be rendered where possible. |
 
-Implementors **MUST** support all of these kinds, and **MUST NOT**
-introduce new kinds.
+Common image formats **SHOULD** be rendered where possible, but it is
+not required to support every possible type of image.
 
-## RichText's Markdown
+Markdown **SHOULD** be rendered where possible, but it may be adapted
+for security reasons. If it is changed before display, a notice **MUST**
+be displayed to the user disclosing that it has been adjusted for
+security. For example, it is acceptable to strip raw HTML tags before
+rendering.
 
-The RichText evidence kind supports a very limited version of markdown:
+Other media types **MUST** be supported insofar as being able to extract
+the data from the evidence package so that they can be opened in other
+software.
 
-* Headings 1-6
-* Bold, Italic, Monospace
-* Tables
-* Code blocks with syntax highlighting
+## HTTP Requests {#http-requests}
 
-Implementors **MUST NOT** process any other markup.
+Where text/vnd.angel.http-data is used, an HTTP request and
+response **MUST** be present in plain text, and a Record Separator
+character (0x1e) **MUST** be used to split the request and response
+portion. In other words, the format **MUST** comply with the following
+regular expression:
 
-## HTTP Requests
+~~~regex
+^(?<request>[.\r\n]*)\x1e(?<response>[.\r\n]*)$
+~~~
 
-Where HTTP is used, a Record Separator character (0x1e) can be used to
-split the request and response portion, for example the separator is
-present at <<1>>:
+For example the separator is present at <<1>>:
 
 ~~~http
 GET / HTTP/1.1
@@ -337,7 +414,8 @@ When an implementor loads a file with fields it cannot understand, it
 # IANA Considerations
 
 This document acts as the specification for the media type
-application/vnd.angel.evidence-package.
+application/vnd.angel.evidence-package. Additionally, the media type
+text/vnd.angel.http-data is defined in (#http-requests).
 
 # Security Considerations
 
