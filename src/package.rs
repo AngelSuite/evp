@@ -451,6 +451,89 @@ impl EvidencePackage {
         Ok(())
     }
 
+    /// Add an attestation for a test case
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error::Attesting`] if an attestation failed to be
+    /// parsed.
+    pub fn attest_test_case(
+        &mut self,
+        test_case: Uuid,
+        secret: &attesting::Secret,
+        algorithm: attesting::Algorithm,
+    ) -> Result<()> {
+        let payload = self
+            .test_case(test_case)?
+            .ok_or(Error::DoesntExist(test_case))?
+            .attestation_payload()
+            .into_bytes();
+        let jws = attesting::Attestation::new_decoded(
+            attesting::Header::from_registered_header(attesting::RegisteredHeader {
+                algorithm,
+                ..Default::default()
+            }),
+            payload,
+        );
+        let jws_enc = jws.encode(secret)?.unwrap_encoded().parts;
+        for tc in &mut self.test_cases {
+            if *tc.id() == test_case {
+                #[allow(clippy::to_string_in_format_args, reason = "clippy gets this wrong")]
+                tc.attestations.push(format!(
+                    "{}..{}",
+                    jws_enc[0].to_string(),
+                    jws_enc[2].to_string()
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Remove the attestation with the given index
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error::Attesting`] if an attestation failed to be
+    /// parsed.
+    pub fn remove_attestation(&mut self, test_case: Uuid, index: usize) -> Result<()> {
+        for tc in &mut self.test_cases {
+            if *tc.id() == test_case {
+                tc.attestations.remove(index);
+                return Ok(());
+            }
+        }
+        Err(Error::DoesntExist(test_case))
+    }
+
+    /// Validate which attestations on a test case are still valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error::Attesting`] if an attestation failed to be
+    /// parsed.
+    pub fn test_case_attestations(
+        &self,
+        test_case: Uuid,
+        jwk_set: &attesting::JWKSet,
+    ) -> Result<Vec<Option<(attesting::Header, Vec<u8>)>>> {
+        for tc in &self.test_cases {
+            if *tc.id() == test_case {
+                let attestations = tc
+                    .attestations()
+                    .iter()
+                    .map(|a| {
+                        let jws = attesting::Attestation::new_encoded(a);
+                        jws.decode_with_jwks(jwk_set, None)
+                            .ok()
+                            .map(attesting::Attestation::unwrap_decoded)
+                    })
+                    .collect::<Vec<_>>();
+                return Ok(attestations);
+            }
+        }
+        Err(Error::DoesntExist(test_case))
+    }
+
     /// Create a new test case.
     ///
     /// # Errors

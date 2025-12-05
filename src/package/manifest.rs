@@ -64,7 +64,7 @@ impl Metadata {
             }
         }
 
-        let new_id = id.unwrap_or_else(|| Uuid::new_v4().to_string());
+        let new_id = id.unwrap_or_else(|| Uuid::now_v7().to_string());
         let field = CustomMetadataField {
             name,
             description,
@@ -202,10 +202,10 @@ impl From<&MediaFile> for MediaFileManifestEntry {
 pub(super) struct TestCaseManifestEntry {
     /// A string to reference the test case internally. Usually a UUID.
     #[serde(alias = "name")] // Compatibility with previous pre-RFC field name `name`.
-    id: Uuid,
+    pub(super) id: Uuid,
 
     /// Attestations over the associated test case
-    attestations: Vec<String>,
+    pub(super) attestations: Vec<String>,
 
     /// Extra fields that this implementation doesn't understand.
     #[get = "pub"]

@@ -18,6 +18,10 @@ pub enum Error {
     #[error("Package error: {0}")]
     Zip(#[from] zip::result::ZipError),
 
+    /// An error from creating or verifying an attestation
+    #[error("Error attesting: {0}")]
+    Attesting(#[from] crate::prelude::attesting::Error),
+
     /// The package is corrupt. See the contained string for more details.
     #[error("The evidence package is corrupt ({0}).")]
     CorruptEvidencePackage(String),

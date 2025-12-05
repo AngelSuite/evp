@@ -198,9 +198,9 @@ it.
 
 #### "attestations" Array {#manifest-test-case-attestations}
 
-The elements within the "attestations" array **MUST** be base64 encoded
-strings of OpenPGP [@!RFC9580] signatures. The signatures should be
-signing a copy of the test case manifest (i.e. the file "uuid.json"),
+The elements within the "attestations" array **MUST** be JWS payload
+un-encoded (detatched) [@!RFC7515] signatures. The signature payload
+should be a copy of the test case manifest (i.e. the file "uuid.json"),
 having been processed into JSON canonical format as defined in
 [@!RFC8785].
 

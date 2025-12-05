@@ -29,4 +29,19 @@ pub mod prelude {
         TestCase, TestCaseMetadata, TestCasePassStatus,
     };
     pub use super::result::{Error, Result};
+    /// Items relating to creating and parsing attestations
+    pub mod attesting {
+        /// The attestation JWS type
+        pub type Attestation = biscuit::jws::Compact<Vec<u8>, biscuit::Empty>;
+        pub use biscuit::errors::*;
+        pub use biscuit::jwa::SignatureAlgorithm as Algorithm;
+        /// The attestation JWS header
+        pub type Header = biscuit::jws::Header<biscuit::Empty>;
+        pub use biscuit::jws::{RegisteredHeader, Secret};
+        /// The attestation JWS set for validation
+        pub type JWKSet = biscuit::jwk::JWKSet<biscuit::Empty>;
+        /// The attestation JWS for validation
+        pub type JWK = biscuit::jwk::JWK<biscuit::Empty>;
+        pub use biscuit::jwk::*;
+    }
 }

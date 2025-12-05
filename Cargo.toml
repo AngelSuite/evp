@@ -19,6 +19,7 @@ exporter-zip-of-files = []
 
 [dependencies]
 base64 = "0.22.1"
+biscuit = "0.7.0"
 build_html = { version = "2.5.0", optional = true }
 chrono = { version = "0.4.38", features = ["serde"] }
 getset = "0.1.2"
@@ -37,4 +38,5 @@ zip = "6.0.0"
 
 [dev-dependencies]
 outdir-tempdir = "0.2.0"
+rand = "0.9.2"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }

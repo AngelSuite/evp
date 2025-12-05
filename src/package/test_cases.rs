@@ -65,6 +65,17 @@ impl TestCase {
     pub(super) fn update_schema(&mut self) {
         self.schema = Some(TESTCASE_SCHEMA_LOCATION.to_string());
     }
+
+    /// Generate the data needed for signing an attestation of this test
+    /// case, in it's current state.
+    #[allow(
+        clippy::missing_panics_doc,
+        reason = "safety is statically checked by me"
+    )]
+    #[must_use]
+    pub fn attestation_payload(&self) -> String {
+        serde_json_canonicalizer::to_string(&self).unwrap()
+    }
 }
 
 /// The metadata of a [`TestCase`].
