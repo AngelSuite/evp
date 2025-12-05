@@ -2,7 +2,9 @@ use crate::angelmark::{AngelmarkLine, AngelmarkTableAlignment, AngelmarkText, pa
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Image, Note, Workbook, Worksheet};
 use uuid::Uuid;
 
-use crate::{EvidenceKind, EvidencePackage, TestCase, TestCasePassStatus};
+use crate::prelude::{
+    Error, EvidenceKind, EvidencePackage, Result as EVPResult, TestCase, TestCasePassStatus,
+};
 
 use super::Exporter;
 
@@ -23,26 +25,25 @@ impl Exporter for ExcelExporter {
         &mut self,
         package: &mut EvidencePackage,
         path: std::path::PathBuf,
-    ) -> crate::Result<()> {
+    ) -> EVPResult<()> {
         let mut workbook = Workbook::new();
         workbook.read_only_recommended();
 
         create_metadata_sheet(workbook.add_worksheet(), package)
-            .map_err(crate::Error::OtherExportError)?;
+            .map_err(Error::OtherExportError)?;
 
-        create_summary_sheet(workbook.add_worksheet(), package)
-            .map_err(crate::Error::OtherExportError)?;
+        create_summary_sheet(workbook.add_worksheet(), package).map_err(Error::OtherExportError)?;
 
         let test_cases: Vec<&TestCase> = package.test_case_iter()?.collect();
         for test_case in test_cases {
             let worksheet = workbook.add_worksheet();
             create_test_case_sheet(worksheet, package.clone(), test_case)
-                .map_err(crate::Error::OtherExportError)?;
+                .map_err(Error::OtherExportError)?;
         }
 
         workbook
             .save(path)
-            .map_err(|e| crate::Error::OtherExportError(e.into()))?;
+            .map_err(|e| Error::OtherExportError(e.into()))?;
 
         Ok(())
     }
@@ -52,21 +53,19 @@ impl Exporter for ExcelExporter {
         package: &mut EvidencePackage,
         case: Uuid,
         path: std::path::PathBuf,
-    ) -> crate::Result<()> {
+    ) -> EVPResult<()> {
         let mut workbook = Workbook::new();
 
         let worksheet = workbook.add_worksheet();
         let case = package
             .test_case(case)?
-            .ok_or(crate::Error::OtherExportError(
-                "Test case not found!".into(),
-            ))?;
+            .ok_or(Error::OtherExportError("Test case not found!".into()))?;
         create_test_case_sheet(worksheet, package.clone(), case)
-            .map_err(crate::Error::OtherExportError)?;
+            .map_err(Error::OtherExportError)?;
 
         workbook
             .save(path)
-            .map_err(|e| crate::Error::OtherExportError(e.into()))?;
+            .map_err(|e| Error::OtherExportError(e.into()))?;
 
         Ok(())
     }

@@ -10,9 +10,9 @@ use getset::{Getters, MutGetters};
 use serde::{Deserialize, Serialize};
 use test_cases::TESTCASE_SCHEMA;
 use uuid::Uuid;
-use zip::{result::ZipError, write::SimpleFileOptions};
+use zip::{CompressionMethod, result::ZipError, write::SimpleFileOptions};
 
-use crate::{Result, result::Error, zip_read_writer::ZipReaderWriter};
+use crate::{prelude::*, zip_read_writer::ZipReaderWriter};
 
 /// Package manifests
 mod manifest;
@@ -24,9 +24,7 @@ pub use media::MediaFile;
 
 /// Test cases from packages
 mod test_cases;
-pub use test_cases::{
-    Evidence, EvidenceData, EvidenceKind, TestCase, TestCaseMetadata, TestCasePassStatus,
-};
+pub use test_cases::{Evidence, EvidenceData, TestCase, TestCaseMetadata, TestCasePassStatus};
 
 /// The URL for $schema for manifest.json
 const MANIFEST_SCHEMA_LOCATION: &str =
@@ -104,7 +102,11 @@ impl EvidencePackage {
         clippy::missing_panics_doc,
         reason = "panics have been statically validated to never occur"
     )]
-    pub fn new(path: PathBuf, title: String, authors: Vec<Author>) -> Result<Self> {
+    pub fn new<S: Into<String>, A: Clone + Into<Author>>(
+        path: PathBuf,
+        title: S,
+        authors: &[A],
+    ) -> Result<Self> {
         Self::new_with_description(path, title, None, authors)
     }
 
@@ -119,11 +121,11 @@ impl EvidencePackage {
         clippy::missing_panics_doc,
         reason = "panics have been statically validated to never occur"
     )]
-    pub fn new_with_description(
+    pub fn new_with_description<S: Into<String>, A: Clone + Into<Author>>(
         path: PathBuf,
-        title: String,
+        title: S,
         description: Option<String>,
-        authors: Vec<Author>,
+        authors: &[A],
     ) -> Result<Self> {
         // Create manifest data.
         let mut manifest = Self {
@@ -135,10 +137,10 @@ impl EvidencePackage {
             media: vec![],
             test_cases: vec![],
             metadata: Metadata {
-                title,
+                title: title.into(),
                 description,
-                authors,
-                custom_test_case_metadata: None,
+                authors: authors.iter().cloned().map(Into::into).collect(),
+                custom_metadata: None,
                 extra_fields: HashMap::new(),
             },
             extra_fields: HashMap::new(),
@@ -147,7 +149,7 @@ impl EvidencePackage {
 
         // Create ZIP file
         let (_, zip) = manifest.zip.as_writer()?;
-        let options = SimpleFileOptions::default();
+        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
         // Create empty structure.
         zip.add_directory("media", options)?;
@@ -193,7 +195,7 @@ impl EvidencePackage {
             let _reader = self.zip.as_reader()?;
         }
         let (mut maybe_old_archive, zip) = self.zip.as_writer()?;
-        let options = SimpleFileOptions::default();
+        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
         // Create empty structure.
         zip.add_directory("media", options)?;
@@ -216,6 +218,7 @@ impl EvidencePackage {
 
                 let data = serde_json::to_string(data)
                     .map_err(crate::result::Error::FailedToSaveTestCase)?;
+                tracing::trace!("Generated test case manifest:\n{data}");
                 if !jsonschema::is_valid(
                     &serde_json::from_str(TESTCASE_SCHEMA).expect("Schema is validated statically"),
                     &serde_json::from_str(&data).expect("JSON just generated, shouldn't fail"),
@@ -277,6 +280,7 @@ impl EvidencePackage {
 
         // Write manifest. This has to be done last to ensure media is scrubbed as needed.
         let manifest_data = serde_json::to_string(&clone).map_err(Error::FailedToCreatePackage)?;
+        tracing::trace!("Generated package manifest:\n{manifest_data}");
         if !jsonschema::is_valid(
             &serde_json::from_str(MANIFEST_SCHEMA).expect("Schema is validated statically"),
             &serde_json::from_str(&manifest_data).expect("JSON just generated, shouldn't fail"),
@@ -474,7 +478,7 @@ impl EvidencePackage {
     where
         S: Into<String>,
     {
-        let new_id = uuid::Uuid::new_v4();
+        let new_id = Uuid::now_v7();
 
         // Create new manifest entry
         self.test_cases.push(TestCaseManifestEntry::new(new_id));
@@ -498,7 +502,7 @@ impl EvidencePackage {
             .cloned()
             .ok_or(Error::DoesntExist(case_id_to_duplicate))?;
         let mut new_case = case.clone();
-        let new_id = Uuid::new_v4();
+        let new_id = Uuid::now_v7();
         new_case.set_id(new_id);
 
         // Create new manifest entry

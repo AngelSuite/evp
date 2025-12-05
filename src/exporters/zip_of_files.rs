@@ -8,7 +8,9 @@ use thiserror::Error;
 use uuid::Uuid;
 use zip::{ZipWriter, write::SimpleFileOptions};
 
-use crate::{EvidenceKind, EvidencePackage, TestCase};
+use crate::prelude::{
+    Error, EvidenceData, EvidenceKind, EvidencePackage, Result as EVPResult, TestCase,
+};
 
 use super::Exporter;
 
@@ -37,18 +39,18 @@ impl Exporter for ZipOfFilesExporter {
         &mut self,
         package: &mut EvidencePackage,
         path: std::path::PathBuf,
-    ) -> crate::Result<()> {
+    ) -> EVPResult<()> {
         fn safely_add_cases_to_zip(
             mut zip: ZipWriter<BufWriter<fs::File>>,
             package: &mut EvidencePackage,
-        ) -> crate::Result<()> {
+        ) -> EVPResult<()> {
             for test_case in package.test_case_iter()? {
                 add_test_case_to_zip(&mut zip, package.clone(), test_case)
-                    .map_err(crate::Error::OtherExportError)?;
+                    .map_err(Error::OtherExportError)?;
             }
 
             zip.finish()
-                .map_err(|e| crate::Error::OtherExportError(Box::new(e)))?;
+                .map_err(|e| Error::OtherExportError(Box::new(e)))?;
 
             Ok(())
         }
@@ -61,13 +63,13 @@ impl Exporter for ZipOfFilesExporter {
             }
         }
         if !has_files {
-            return Err(crate::Error::OtherExportError(Box::new(
+            return Err(Error::OtherExportError(Box::new(
                 ZipOfFilesError::NoFilesToExport,
             )));
         }
 
         let zip = ZipWriter::new(BufWriter::new(
-            fs::File::create(&path).map_err(|e| crate::Error::OtherExportError(Box::new(e)))?,
+            fs::File::create(&path).map_err(|e| Error::OtherExportError(Box::new(e)))?,
         ));
         if let Err(e) = safely_add_cases_to_zip(zip, package) {
             // Delete file if exists
@@ -84,36 +86,33 @@ impl Exporter for ZipOfFilesExporter {
         package: &mut EvidencePackage,
         case: Uuid,
         path: std::path::PathBuf,
-    ) -> crate::Result<()> {
+    ) -> EVPResult<()> {
         fn inner(
             mut zip: ZipWriter<BufWriter<fs::File>>,
             package: &mut EvidencePackage,
             case: &TestCase,
-        ) -> crate::Result<()> {
+        ) -> EVPResult<()> {
             add_test_case_to_zip(&mut zip, package.clone(), case)
-                .map_err(crate::Error::OtherExportError)?;
+                .map_err(Error::OtherExportError)?;
 
             zip.finish()
-                .map_err(|e| crate::Error::OtherExportError(Box::new(e)))?;
+                .map_err(|e| Error::OtherExportError(Box::new(e)))?;
 
             Ok(())
         }
 
         let case = package
             .test_case(case)?
-            .ok_or(crate::Error::OtherExportError(
-                "Test case not found!".into(),
-            ))?
+            .ok_or(Error::OtherExportError("Test case not found!".into()))?
             .clone();
 
         if !check_has_files(&case) {
-            return Err(crate::Error::OtherExportError(Box::new(
+            return Err(Error::OtherExportError(Box::new(
                 ZipOfFilesError::NoFilesToExport,
             )));
         }
 
-        let file =
-            fs::File::create(&path).map_err(|e| crate::Error::OtherExportError(Box::new(e)))?;
+        let file = fs::File::create(&path).map_err(|e| Error::OtherExportError(Box::new(e)))?;
         let zip = ZipWriter::new(BufWriter::new(file));
         if let Err(e) = inner(zip, package, &case) {
             // Delete file if exists
@@ -162,7 +161,7 @@ fn add_test_case_to_zip(
 
             let name = if let Some(filename) = evidence.original_filename() {
                 filename.clone()
-            } else if let crate::EvidenceData::Media { hash } = evidence.value() {
+            } else if let EvidenceData::Media { hash } = evidence.value() {
                 hash.clone()
             } else {
                 unnamed_counter += 1;
@@ -186,12 +185,11 @@ fn add_test_case_to_zip(
             // Add to ZIP file
             zip.start_file(
                 format!("{}/{disambiguator}{name}", test_case.metadata().title()),
-                SimpleFileOptions::default(),
+                SimpleFileOptions::default().compression_method(CompressionMethod::Deflated),
             )
-            .map_err(|e| crate::Error::OtherExportError(Box::new(e)))?;
+            .map_err(|e| Error::OtherExportError(Box::new(e)))?;
             let mut data_cursor = Cursor::new(data);
-            io::copy(&mut data_cursor, zip)
-                .map_err(|e| crate::Error::OtherExportError(Box::new(e)))?;
+            io::copy(&mut data_cursor, zip).map_err(|e| Error::OtherExportError(Box::new(e)))?;
         }
     }
 

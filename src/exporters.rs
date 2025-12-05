@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use uuid::Uuid;
 
-use crate::{EvidencePackage, Result};
+use crate::prelude::{EvidencePackage, Result};
 
 /// Exporter for Excel files.
 #[cfg(feature = "exporter-excel")]

@@ -6,28 +6,27 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_sign_loss)]
 
-//! # `EvidenceAngel`
+//! # `evp`
 //!
-//! `EvidenceAngel` is a new tool in the Angel-suite to collect test evidence
-//! from both manual and automated testing.
+//! `evp` is a library that reads and produces Evidence Packages, as
+//! defined by Internet Draft [draft-hopkins-evp-spec](https://hpkns.uk/evp)
 
-/// Angelmark is a Markdown-like markup language for EVP Rich Text.
-///
-/// Eventually, this will be replaced with another solution that
-/// supports Markdown more completely.
-pub mod angelmark;
+/// Exporters allow packages and test cases to be exported to different file formats.
+// pub mod exporters;
 /// Locking file
 mod lock_file;
 /// The types of data in a package
-mod package;
-pub use package::{
-    Author, CustomMetadataField, Evidence, EvidenceData, EvidenceKind, EvidencePackage, MediaFile,
-    Metadata, TestCase, TestCaseMetadata, TestCasePassStatus,
-};
+pub mod package;
 /// The results of this crate
-mod result;
-pub use result::{Error, Result};
-/// Exporters allow packages and test cases to be exported to different file formats.
-pub mod exporters;
+pub mod result;
 /// Open a ZIP file in a fashion that allows it to be switched between reading and writing.
 mod zip_read_writer;
+
+/// Import useful items from the `evp` package in one go.
+pub mod prelude {
+    pub use super::package::{
+        Author, CustomMetadataField, Evidence, EvidenceData, EvidencePackage, MediaFile, Metadata,
+        TestCase, TestCaseMetadata, TestCasePassStatus,
+    };
+    pub use super::result::{Error, Result};
+}

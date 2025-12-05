@@ -6,7 +6,10 @@ use base64::Engine;
 use build_html::{Html, HtmlContainer, HtmlElement, HtmlPage, HtmlTag};
 use uuid::Uuid;
 
-use crate::{EvidenceData, EvidenceKind, EvidencePackage, MediaFile, TestCase, TestCasePassStatus};
+use crate::prelude::{
+    Error, EvidenceData, EvidenceKind, EvidencePackage, MediaFile, Result as EVPResult, TestCase,
+    TestCasePassStatus,
+};
 
 use super::Exporter;
 
@@ -27,7 +30,7 @@ impl Exporter for HtmlExporter {
         &mut self,
         package: &mut EvidencePackage,
         path: std::path::PathBuf,
-    ) -> crate::Result<()> {
+    ) -> EVPResult<()> {
         let mut page = HtmlPage::new()
             .with_title(html_escape::encode_text(package.metadata().title()))
             .with_style(include_str!("html.css"))
@@ -113,7 +116,7 @@ impl Exporter for HtmlExporter {
             tab_container.add_html(tab_elem);
 
             let elem = create_test_case_div(package.clone(), test_case)
-                .map_err(crate::Error::OtherExportError)?
+                .map_err(Error::OtherExportError)?
                 .with_attribute("data-tab-index", idx)
                 .with_attribute(
                     "class",
@@ -145,7 +148,7 @@ impl Exporter for HtmlExporter {
         package: &mut EvidencePackage,
         case: Uuid,
         path: std::path::PathBuf,
-    ) -> crate::Result<()> {
+    ) -> EVPResult<()> {
         let mut page = HtmlPage::new()
             .with_title(html_escape::encode_text(package.metadata().title()))
             .with_style(include_str!("html.css"))
@@ -153,11 +156,8 @@ impl Exporter for HtmlExporter {
 
         let case = package
             .test_case(case)?
-            .ok_or(crate::Error::OtherExportError(
-                "Test case not found!".into(),
-            ))?;
-        let elem =
-            create_test_case_div(package.clone(), case).map_err(crate::Error::OtherExportError)?;
+            .ok_or(Error::OtherExportError("Test case not found!".into()))?;
+        let elem = create_test_case_div(package.clone(), case).map_err(Error::OtherExportError)?;
         page.add_html(elem);
 
         fs::write(path, page.to_html_string())?;

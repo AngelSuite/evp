@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-/// An error raised by `EvidenceAngel`.
+/// An error raised by the `evp` library.
 #[derive(Debug, Error)]
 pub enum Error {
     /// You are trying to perform an operation without a lock on the package.

@@ -9,11 +9,11 @@ submissionType = "independent"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-hopkins-evp-spec-05"
+value = "draft-hopkins-evp-spec-06"
 stream = "independent"
 status = "informational"
 
-date = 2025-10-13T00:00:00Z
+date = 2025-12-05T00:00:00Z
 
 [[author]]
 initials="L."
@@ -97,12 +97,12 @@ when, and only when, they appear in all capitals, as shown here.
 
 # Specification
 
-An evidence package is a structured ZIP archive [@!zip]. It **MUST**
-contain the file "manifest.json", and the directories "media" and
-"test_cases" internally within the ZIP archive. This structure does not
-need to be represented outside of the ZIP archive and as such the
-internal structure does not need to be understood by an end-user of any
-tool that works with evidence packages.
+An evidence package is a structured ZIP archive [@!zip] using deflate
+compression. It **MUST** contain the file "manifest.json", and the
+directories "media" and "test_cases" internally within the ZIP archive.
+This structure does not need to be represented outside of the ZIP
+archive and as such the internal structure does not need to be
+understood by an end-user of any tool that works with evidence packages.
 
 <reference anchor="zip" target="https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT">
     <front>
@@ -194,14 +194,13 @@ it.
 | Element    | Condition | Type | Section | Description |
 |------------|-----------|------|---------|---|
 | id         | Mandatory | String | | The UUID of the test case. If present here, there **MUST** be an associated test case file in the "test_cases" directory of the package with the name "<UUID>.json". |
-| sha256_checksum | Mandatory | String | | The SHA256 checksum of the corresponding JSON file, "<UUID>.json". |
 | attestations | Mandatory | Array of Strings | (#manifest-test-case-attestations) | An array of attestations over this test case. |
 
 #### "attestations" Array {#manifest-test-case-attestations}
 
 The elements within the "attestations" array **MUST** be base64 encoded
 strings of OpenPGP [@!RFC9580] signatures. The signatures should be
-signing a copy of this manifest entry, excluding "attestations" itself,
+signing a copy of the test case manifest (i.e. the file "uuid.json"),
 having been processed into JSON canonical format as defined in
 [@!RFC8785].
 
@@ -211,7 +210,6 @@ this:
 ~~~json
 {
   "id": "7928de11-8de8-4bfe-b5b7-cbf07c7066d9",
-  "sha256_checksum": "a2394af8d2b4e0c9ba66e797fd6060f4e6932e126f781157cdd2dda1c08b4b6f",
   "attestations": [],
   "some_other_value": "Added from somewhere other than this specification!"
 }
@@ -229,7 +227,6 @@ This can now be signed and the original manifest can be modified:
 ~~~json
 {
   "id": "7928de11-8de8-4bfe-b5b7-cbf07c7066d9",
-  "sha256_checksum": "a2394af8d2b4e0c9ba66e797fd6060f4e6932e126f781157cdd2dda1c08b4b6f",
   "attestations": [
     "owGbwMvMwMH4dr363nNHa04wnj4glMSQ8Va7t1opM0XJSsnc0sgiJdXQUBdIWuiaJKWl6iaZJpnrJielGZgnmxuYmaVYKukoFWckGpmaxSdnpCZnF5fmAjUmGhlbmiSmWaQYJZmkGiRbJiWamaWaW5qnpZgZmBmkmaSaWRobpRoamaWZWxgamponp6QYpaQkGiYbWCSZJJmlgQzNz02Nzy/JSC2KL0vMKU0FmuqYkpKaopBWlJ+rAJItB8qlKoCVKJRkJOYBicxiheKC1OTMtMzkxJLM/DxFpVquTiZ/FgZGDgZLMUWWicUSryIWnPnu39fyEuZrViaQj6VFGhiAgIWBLzcxr9RIx0jPVNtQz9BQB8hk4OIUgKm+ms7/P9xXe5oSl6nYW1fJ9S9/bhZN3br8oWev2A8R+Vs7ODd88xUxncHVvIltQXxwed3mm9xiu/+LV/oYqB1KuvI4+cittFtcj3KUpqd3RikEzfM7mcXDv+5x9lKuG4e+f2Hk8zmt9Tybf62wZL/+RzXzoMtqa4LeFUcWNBQ9X81+R6z+0J7PfOJvuC+8SetJl7B+pyj+4W/S+S0+2/LTn5fUC+jPuLTdWfD+r0kThHjbVCYk9td/6JVKmPP88A2bN+fyRDc9qH/Sv4Nr3bRDi1xbDJmKFxmenJfYOGf3cpEJG0XbrN1u7rwmvqzipljKJteU/MxUe1aHh0IzwgWXHV3XwxnAcnu/4IfWq368knX5D2XkK4ovnGdZeKft+clmubgcFUGGgKqVcYvKzr/nKZpl0adm7rvFty1XhTP7xN/UnM8Z+4ymFURfc5vvbayupqC0pDnSa93EW5MnBFSoOImE+e5TNxdnXli6uflNZsXkj8wxBgvfTxVTuX/AmCvkjHkc178tHyu2uQWtFze6+PmCXJ5B9BnjJ7ZH3ZnmLZ8rpPv03v44j6PZd0R8Wf74l7WpHc56EBrF+ZNr00J3eTOTxQIvu/7vU/1bqdCWd0HugGdVwuSoqmPa0f/v7Fl8L2bPLasPrrOyZ4Xtse3t2pDp9qpgCUfjfr26Cl57/rs8njkf3ygUJIiHFZ/5ujGrPftRce6Gpft3SbS8+gIA"
   ],
@@ -291,7 +288,7 @@ as the key.
 | kind              | Mandatory | String | (#evidence-kind) | The Internet Media Type [@!RFC2046] of data stored. |
 | value             | Mandatory | String | (#evidence-value) | The data stored within this piece of evidence. |
 | caption           | Optional  | String/Null | | An optional caption for this piece of evidence. |
-| original_filename | Optional  | String/Null | | The original filename. **MAY** be provided for Image and File evidence, **MUST NOT** be provided otherwise. |
+| original_filename | Optional  | String/Null | | The original filename. |
 
 ##### "kind" {#evidence-kind}
 
@@ -469,7 +466,8 @@ example.evp
   ],
   "test_cases": [
     {
-      "id": "eabb5d31-a958-4609-ac98-83365e14d18b"
+      "id": "eabb5d31-a958-4609-ac98-83365e14d18b",
+      "attestations": []
     }
   ]
 }
@@ -489,18 +487,24 @@ example.evp
   },
   "evidence": [
     {
-      "kind":"Text",
+      "kind":"text/plain",
       "value":"plain:This is some text based evidence"
     },
     {
-      "kind":"Text",
+      "kind":"text/plain",
       "value":"base64:VGhpcyBpcyBzb21lIHRleHQgYmFzZWQgYmFzZTY0IGVuY29kZWQgZXZpZGVuY2U"
     },
     {
-      "kind":"File",
+      "kind":"text/plain",
       "value":"media:203073da0b36a5921f2914e2093abcae7eb987846f405b438c25792bab1617fa",
       "caption": "An example file",
       "original_filename": "example.txt"
+    },
+    {
+      "kind":"image/png",
+      "value":"media:c561967275f002e65b222b4577378f5a20a5881edd00fbe648beef6b4f4971a9",
+      "caption": "An example image",
+      "original_filename": "image.png"
     }
   ]
 }
@@ -512,4 +516,4 @@ example.evp
 
 # JSON Schema for Test Case Manifest
 
-<{{testcase.1.schema.json}}
+<{{testcase.2.schema.json}}
