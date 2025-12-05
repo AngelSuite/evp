@@ -386,8 +386,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "winapi",
- "zip 5.1.1",
+ "zip",
 ]
 
 [[package]]
@@ -1390,7 +1389,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca8b9faf2c68874f865272c92493e9bb811e5fdff197a56ecc4748885ec5a874"
 dependencies = [
  "chrono",
- "zip 4.6.1",
+ "zip",
 ]
 
 [[package]]
