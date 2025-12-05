@@ -12,7 +12,11 @@ fn test_write_and_read() {
     let mut path = dir.path().to_path_buf();
     path.push("test.evp");
 
-    let secret = attesting::Secret::Bytes(b"secret".to_vec());
+    let secret_path = format!("{}/tests/ecdsa_private_key.p8", env!("CARGO_MANIFEST_DIR"));
+    let algo = attesting::Algorithm::ES256;
+    tracing::info!("Loading private key from: {secret_path}");
+    let secret = attesting::Secret::ecdsa_keypair_from_file(algo, &secret_path)
+        .expect("Failed to read key from file");
 
     {
         // Create package
@@ -35,7 +39,14 @@ fn test_write_and_read() {
             *tc.id()
         };
         package
-            .attest_test_case(tc_id, &secret, attesting::Algorithm::HS256)
+            .attest_test_case(
+                tc_id,
+                &secret,
+                attesting::RegisteredHeader {
+                    algorithm: algo,
+                    ..Default::default()
+                },
+            )
             .expect("Failed to attest");
         package.save().expect("Failed to save package");
     }
@@ -52,10 +63,15 @@ fn test_write_and_read() {
         for tc in cases {
             count += 1;
             let attestations = package
-                .test_case_attestations(*tc.id(), &attesting::JWKSet { keys: vec![] })
+                .test_case_attestations(*tc.id())
                 .expect("Failed to parse attestations");
             assert_eq!(attestations.len(), 1);
-            // TODO Validate attestation specifically
+            tracing::debug!("{attestations:?}");
+            let (ats, same) = &attestations[0];
+            assert_eq!(*same, true);
+            let _ = ats
+                .decode(&secret, algo)
+                .expect("Failed to validate attestation");
             assert_eq!(tc.metadata().title(), "Test Case");
             assert_eq!(tc.evidence().len(), 1);
             for ev in tc.evidence() {

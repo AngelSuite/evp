@@ -153,7 +153,7 @@ impl EvidencePackage {
 
         // Create empty structure.
         zip.add_directory("media", options)?;
-        zip.add_directory("testcases", options)?;
+        zip.add_directory("test_cases", options)?;
 
         let manifest_data =
             serde_json::to_string(&manifest_clone).map_err(Error::FailedToCreatePackage)?;
@@ -199,7 +199,7 @@ impl EvidencePackage {
 
         // Create empty structure.
         zip.add_directory("media", options)?;
-        zip.add_directory("testcases", options)?;
+        zip.add_directory("test_cases", options)?;
 
         tracing::trace!("Current media cache: {:?}", self.media_data);
 
@@ -226,7 +226,7 @@ impl EvidencePackage {
                     let _ = self.zip.interrupt_write();
                     return Err(Error::TestCaseSchemaValidationFailed);
                 }
-                zip.start_file(format!("testcases/{id}.json"), options)?;
+                zip.start_file(format!("test_cases/{id}.json"), options)?;
                 zip.write_all(data.as_bytes())?;
             }
         }
@@ -351,7 +351,7 @@ impl EvidencePackage {
         for test_case in &evidence_package.test_cases {
             let id = test_case.id();
             let data = zip
-                .by_name(&format!("testcases/{id}.json"))
+                .by_name(&format!("test_cases/{id}.json"))
                 .map_err(|_| Error::CorruptEvidencePackage(format!("missing test case {id}")))?;
             let test_case_data = {
                 let mut buf_test_case = BufReader::new(data);
@@ -367,7 +367,7 @@ impl EvidencePackage {
                     .map_err(|_| Error::TestCaseSchemaValidationFailed)?,
             ) {
                 // Read as version 1
-                tracing::debug!("Test case {id} opened as version 1");
+                tracing::debug!("Test case {id} opened as version 2");
                 let mut test_case: TestCase = serde_json::from_str(&test_case_data)
                     .map_err(|e| Error::InvalidTestCase(e, *id))?;
                 test_case.set_id(*id);
@@ -461,7 +461,7 @@ impl EvidencePackage {
         &mut self,
         test_case: Uuid,
         secret: &attesting::Secret,
-        algorithm: attesting::Algorithm,
+        header: attesting::RegisteredHeader,
     ) -> Result<()> {
         let payload = self
             .test_case(test_case)?
@@ -469,21 +469,14 @@ impl EvidencePackage {
             .attestation_payload()
             .into_bytes();
         let jws = attesting::Attestation::new_decoded(
-            attesting::Header::from_registered_header(attesting::RegisteredHeader {
-                algorithm,
-                ..Default::default()
-            }),
+            attesting::Header::from_registered_header(header),
             payload,
         );
-        let jws_enc = jws.encode(secret)?.unwrap_encoded().parts;
+        let jws_enc = jws.encode(secret)?.unwrap_encoded();
         for tc in &mut self.test_cases {
             if *tc.id() == test_case {
                 #[allow(clippy::to_string_in_format_args, reason = "clippy gets this wrong")]
-                tc.attestations.push(format!(
-                    "{}..{}",
-                    jws_enc[0].to_string(),
-                    jws_enc[2].to_string()
-                ));
+                tc.attestations.push(jws_enc.to_string());
             }
         }
         Ok(())
@@ -505,28 +498,34 @@ impl EvidencePackage {
         Err(Error::DoesntExist(test_case))
     }
 
-    /// Validate which attestations on a test case are still valid.
+    /// Returns the attestations associated with a test case. It is up
+    /// to you to perform validation on these!
+    ///
+    /// Attestations are returned with a boolean flag whih indicates if
+    /// the attestation payload matches the current state of the test
+    /// case.
     ///
     /// # Errors
     ///
     /// Returns an [`Error::Attesting`] if an attestation failed to be
     /// parsed.
+    #[allow(clippy::missing_panics_doc, reason = "manually verified cannot panic")]
     pub fn test_case_attestations(
         &self,
         test_case: Uuid,
-        jwk_set: &attesting::JWKSet,
-    ) -> Result<Vec<Option<(attesting::Header, Vec<u8>)>>> {
+    ) -> Result<Vec<(attesting::Attestation, bool)>> {
+        let payload = self
+            .test_case(test_case)?
+            .ok_or(Error::DoesntExist(test_case))?
+            .attestation_payload()
+            .into_bytes();
         for tc in &self.test_cases {
             if *tc.id() == test_case {
                 let attestations = tc
                     .attestations()
                     .iter()
-                    .map(|a| {
-                        let jws = attesting::Attestation::new_encoded(a);
-                        jws.decode_with_jwks(jwk_set, None)
-                            .ok()
-                            .map(attesting::Attestation::unwrap_decoded)
-                    })
+                    .map(|a| attesting::Attestation::new_encoded(a))
+                    .map(|a| (a.clone(), payload == a.unverified_payload().unwrap()))
                     .collect::<Vec<_>>();
                 return Ok(attestations);
             }

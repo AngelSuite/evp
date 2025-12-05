@@ -74,7 +74,7 @@ impl TestCase {
     )]
     #[must_use]
     pub fn attestation_payload(&self) -> String {
-        serde_json_canonicalizer::to_string(&self).unwrap()
+        sha256::digest(serde_json_canonicalizer::to_string(&self).unwrap())
     }
 }
 

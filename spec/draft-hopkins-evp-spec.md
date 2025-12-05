@@ -9,11 +9,11 @@ submissionType = "independent"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-hopkins-evp-spec-06"
+value = "draft-hopkins-evp-spec-07"
 stream = "independent"
 status = "informational"
 
-date = 2025-12-05T00:00:00Z
+date = 2025-12-06T00:00:00Z
 
 [[author]]
 initials="L."
@@ -198,28 +198,52 @@ it.
 
 #### "attestations" Array {#manifest-test-case-attestations}
 
-The elements within the "attestations" array **MUST** be JWS payload
-un-encoded (detatched) [@!RFC7515] signatures. The signature payload
-should be a copy of the test case manifest (i.e. the file "uuid.json"),
-having been processed into JSON canonical format as defined in
-[@!RFC8785].
+The elements within the "attestations" array **MUST** be JWS [@!RFC7515]
+signatures. The signature payload must be a SHA256 checksum of a copy of
+the test case manifest (i.e. the file "uuid.json"), having been
+processed into JSON canonical format as defined in [@!RFC8785].
 
-As a worked example, a manifest test_cases entry may start off like
-this:
+In environments where it is desirable to frequently validate
+attestations, it is recommended to include the "x5c" X.509 certificate,
+and a "jku" (JWT Key URL). An implementing client is **RECOMMENDED** to
+display the URL in some fashion if the key passes validation as a way to
+prove the signing party, however another approach may also be desirable
+depending on environment.
+
+Implementing clients **SHOULD NOT** use symmetric key types (although it
+may be acceptable for tools that are only used within a limited scope),
+and APIs implementing this specification **MAY** choose to be
+imcompatible with symmetric types.
+
+As a worked example, a test case may start off like this:
 
 ~~~json
 {
-  "id": "7928de11-8de8-4bfe-b5b7-cbf07c7066d9",
-  "attestations": [],
-  "some_other_value": "Added from somewhere other than this specification!"
+  "$schema": "https://evidenceangel-schemas.hpkns.uk/testcase.2.schema.json",
+  "metadata": {
+    "title": "Test Case",
+    "execution_datetime": "2025-12-05T20:40:22.743821295Z",
+    "passed": null
+  },
+  "evidence": [
+    {
+      "kind": "text/plain",
+      "value": "plain:Hello, world!"
+    }
+  ]
 }
 ~~~
 
-This should then have the "attestations" array removed and should be
-canonicalised:
+This should then be canonicalised:
 
 ~~~json
-{"id":"7928de11-8de8-4bfe-b5b7-cbf07c7066d9","sha256_checksum":"a2394af8d2b4e0c9ba66e797fd6060f4e6932e126f781157cdd2dda1c08b4b6f","some_other_value":"Added from somewhere other than this specification!"}
+{"$schema":"https://evidenceangel-schemas.hpkns.uk/testcase.2.schema.json","evidence":[{"kind":"text/plain","value":"plain:Hello, world!"}],"metadata":{"execution_datetime":"2025-12-05T20:40:22.743821295Z","passed":null,"title":"Test Case"}}
+~~~
+
+A SHA256 checksum can be generated:
+
+~~~text
+6cd9684d866d5dacd85064f20d0b3fd423e30946c6b99d1f2defae529360becc
 ~~~
 
 This can now be signed and the original manifest can be modified:
@@ -228,7 +252,7 @@ This can now be signed and the original manifest can be modified:
 {
   "id": "7928de11-8de8-4bfe-b5b7-cbf07c7066d9",
   "attestations": [
-    "owGbwMvMwMH4dr363nNHa04wnj4glMSQ8Va7t1opM0XJSsnc0sgiJdXQUBdIWuiaJKWl6iaZJpnrJielGZgnmxuYmaVYKukoFWckGpmaxSdnpCZnF5fmAjUmGhlbmiSmWaQYJZmkGiRbJiWamaWaW5qnpZgZmBmkmaSaWRobpRoamaWZWxgamponp6QYpaQkGiYbWCSZJJmlgQzNz02Nzy/JSC2KL0vMKU0FmuqYkpKaopBWlJ+rAJItB8qlKoCVKJRkJOYBicxiheKC1OTMtMzkxJLM/DxFpVquTiZ/FgZGDgZLMUWWicUSryIWnPnu39fyEuZrViaQj6VFGhiAgIWBLzcxr9RIx0jPVNtQz9BQB8hk4OIUgKm+ms7/P9xXe5oSl6nYW1fJ9S9/bhZN3br8oWev2A8R+Vs7ODd88xUxncHVvIltQXxwed3mm9xiu/+LV/oYqB1KuvI4+cittFtcj3KUpqd3RikEzfM7mcXDv+5x9lKuG4e+f2Hk8zmt9Tybf62wZL/+RzXzoMtqa4LeFUcWNBQ9X81+R6z+0J7PfOJvuC+8SetJl7B+pyj+4W/S+S0+2/LTn5fUC+jPuLTdWfD+r0kThHjbVCYk9td/6JVKmPP88A2bN+fyRDc9qH/Sv4Nr3bRDi1xbDJmKFxmenJfYOGf3cpEJG0XbrN1u7rwmvqzipljKJteU/MxUe1aHh0IzwgWXHV3XwxnAcnu/4IfWq368knX5D2XkK4ovnGdZeKft+clmubgcFUGGgKqVcYvKzr/nKZpl0adm7rvFty1XhTP7xN/UnM8Z+4ymFURfc5vvbayupqC0pDnSa93EW5MnBFSoOImE+e5TNxdnXli6uflNZsXkj8wxBgvfTxVTuX/AmCvkjHkc178tHyu2uQWtFze6+PmCXJ5B9BnjJ7ZH3ZnmLZ8rpPv03v44j6PZd0R8Wf74l7WpHc56EBrF+ZNr00J3eTOTxQIvu/7vU/1bqdCWd0HugGdVwuSoqmPa0f/v7Fl8L2bPLasPrrOyZ4Xtse3t2pDp9qpgCUfjfr26Cl57/rs8njkf3ygUJIiHFZ/5ujGrPftRce6Gpft3SbS8+gIA"
+    "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.YmI5YzdkMjczYWY2NzE5NWM1MWM1N2YyNzRjMDc5NTViODZiMDA3MWE0MDU3MWFjOTIwYzE2M2UzNDQxYzUwZQ.KtbRLfAh8UmSxSWYnObpydXyjGO_IPF2acU_x-eFY6dLDBD809zJm6HaTE9jjsQlnX8eGWRIOzKXTWMdgp-fXg"
   ],
   "some_other_value": "Added from somewhere other than this specification!"
 }
@@ -467,7 +491,9 @@ example.evp
   "test_cases": [
     {
       "id": "eabb5d31-a958-4609-ac98-83365e14d18b",
-      "attestations": []
+      "attestations": [
+        "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.YmI5YzdkMjczYWY2NzE5NWM1MWM1N2YyNzRjMDc5NTViODZiMDA3MWE0MDU3MWFjOTIwYzE2M2UzNDQxYzUwZQ.KtbRLfAh8UmSxSWYnObpydXyjGO_IPF2acU_x-eFY6dLDBD809zJm6HaTE9jjsQlnX8eGWRIOzKXTWMdgp-fXg"
+      ]
     }
   ]
 }
