@@ -9,7 +9,7 @@ submissionType = "independent"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-hopkins-evp-spec-07"
+value = "draft-hopkins-evp-spec-08"
 stream = "independent"
 status = "informational"
 
@@ -24,7 +24,7 @@ fullname="Lily Hopkins"
   email = "lily@hpkns.uk"
 
 [[author]]
-inials="E."
+initials="E."
 surname="Turner"
 fullname="Eden Turner"
   [author.address]
@@ -55,7 +55,7 @@ evidence produced as the result of software testing that:
 * stores data compressed;
 * stores related evidence together, but allows for dividing up by test
   case;
-* allows test evidence to be attested with a tracable list of attestors,
+* allows test evidence to be attested with a traceable list of attestors,
   and;
 * is built upon widely available standards.
 
@@ -141,7 +141,7 @@ this specification should be seen as the primary definition of structure
 over anything defined in the linked schema.
 
 The JSON schema provided at by this element may give details about any
-additional fields used that are not defined in this specficiation.
+additional fields used that are not defined in this specification.
 
 ### "metadata" Element {#manifest-metadata}
 
@@ -178,7 +178,7 @@ true for more than one field.
 The purpose of primary is not enforced as part of this specification,
 however it should be seen as suggesting that one custom metadata field
 is more useful than others, and as such may be used to influence the
-information displayed to users, for example an implementor might choose
+information displayed to users, for example an implementer might choose
 to show the primary custom metadata value for each test case alongside
 it.
 
@@ -213,7 +213,7 @@ depending on environment.
 Implementing clients **SHOULD NOT** use symmetric key types (although it
 may be acceptable for tools that are only used within a limited scope),
 and APIs implementing this specification **MAY** choose to be
-imcompatible with symmetric types.
+incompatible with symmetric types.
 
 As a worked example, a test case may start off like this:
 
@@ -286,7 +286,7 @@ this specification should be seen as the primary definition of structure
 over anything defined in the linked schema.
 
 The JSON schema provided at by this element may give details about any
-additional fields used that are not defined in this specficiation.
+additional fields used that are not defined in this specification.
 
 #### "metadata" Element {#test-case-metadata}
 
@@ -341,7 +341,7 @@ manifest "media" element.
 In the unlikely event that there is a checksum clash, there is currently
 no preferred method for resolving this. The probability of such a
 situation is decided to be acceptably low given the expected size and
-number of files stored in an evidence package, however implementors
+number of files stored in an evidence package, however implementers
 **MAY** choose to store the clashing file as base64 data instead of as
 an additional media file.
 
@@ -367,14 +367,14 @@ is no current lock over the package.
 
 Software implementing the evidence package format **MUST NOT** load
 files from the "media" directory into memory until it is needed for
-display or for extraction. Implementors **MUST** use streams to load
+display or for extraction. implementers **MUST** use streams to load
 media files to avoid trying to load the entire file into memory as it
 may not fit.
 
 # Kinds of Evidence {#kinds-of-evidence}
 
 Evidence packages can support any valid Internet Media Type [@!RFC2046]
-as evidence. Implementors of this specification **MUST** be able to
+as evidence. implementers of this specification **MUST** be able to
 display the following types:
 
 | Media Type               | Description                                      |
@@ -426,10 +426,10 @@ Connection: close
 
 Every JSON file within an evidence package **MAY** have new fields
 added, and as such extended behaviours **MAY** be implemented, however
-implementors **MUST** be able to load an evidence package without these
+implementers **MUST** be able to load an evidence package without these
 additional fields.
 
-When an implementor loads a file with fields it cannot understand, it
+When an implementer loads a file with fields it cannot understand, it
 **MUST** retain the fields on saving the file.
 
 # IANA Considerations
@@ -441,7 +441,7 @@ text/vnd.angel.http-data is defined in (#http-requests).
 # Security Considerations
 
 The evidence package format can store arbitrary files that may or may
-not be executable. Implementors **MUST NOT** execute any file contained
+not be executable. implementers **MUST NOT** execute any file contained
 within and **SHALL** only extract the contained files if needed.
 
 Otherwise, there are no concerns for security from the file type itself.
