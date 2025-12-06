@@ -168,10 +168,10 @@ fn create_summary_sheet(
         for (idx, key) in custom_keys.iter().enumerate() {
             let col = u16::try_from(4 + idx)?;
             worksheet.write_string_with_format(row, col, "", &bordered)?;
-            if let Some(custom) = test_case.metadata().custom() {
-                if let Some(data) = custom.get(key) {
-                    worksheet.write_string_with_format(row, col, data, &bordered)?;
-                }
+            if let Some(custom) = test_case.metadata().custom()
+                && let Some(data) = custom.get(key)
+            {
+                worksheet.write_string_with_format(row, col, data, &bordered)?;
             }
         }
         row += 1;
@@ -347,33 +347,30 @@ fn create_test_case_sheet(
     Ok(())
 }
 
+/// Convert Markdown AST to an array of lines, each an array of line
+/// elements defining a format and associated text.
 fn markdown_to_excel(node: Node, format: &Format) -> Vec<Vec<(Format, String)>> {
     match node {
         Node::Root(root) => root
             .children
             .into_iter()
-            .map(|c| markdown_to_excel(c, format))
-            .flatten()
+            .flat_map(|c| markdown_to_excel(c, format))
             .collect(),
-        Node::Break(_) => vec![],
         Node::Paragraph(para) => para
             .children
             .into_iter()
-            .map(|c| markdown_to_excel(c, format))
-            .flatten()
+            .flat_map(|c| markdown_to_excel(c, format))
             .collect(),
         Node::List(list) => list
             .children
             .into_iter()
-            .map(|c| markdown_to_excel(c, format))
-            .flatten()
+            .flat_map(|c| markdown_to_excel(c, format))
             .collect(),
         Node::ListItem(item) => {
             let mut item = item
                 .children
                 .into_iter()
-                .map(|c| markdown_to_excel(c, format))
-                .flatten()
+                .flat_map(|c| markdown_to_excel(c, format))
                 .collect::<Vec<_>>();
             if let Some(fir) = item.first_mut() {
                 fir.insert(0, (format.clone(), "• ".to_string()));
@@ -385,8 +382,7 @@ fn markdown_to_excel(node: Node, format: &Format) -> Vec<Vec<(Format, String)>> 
             let size = font_sizes.get(usize::from(hdg.depth)).unwrap_or(&14);
             hdg.children
                 .into_iter()
-                .map(|c| markdown_to_excel(c, &format.clone().set_font_size(*size)))
-                .flatten()
+                .flat_map(|c| markdown_to_excel(c, &format.clone().set_font_size(*size)))
                 .collect()
         }
         Node::Code(code) => {
@@ -407,14 +403,12 @@ fn markdown_to_excel(node: Node, format: &Format) -> Vec<Vec<(Format, String)>> 
         Node::Strong(strong) => strong
             .children
             .into_iter()
-            .map(|c| markdown_to_excel(c, &format.clone().set_bold()))
-            .flatten()
+            .flat_map(|c| markdown_to_excel(c, &format.clone().set_bold()))
             .collect(),
         Node::Emphasis(emph) => emph
             .children
             .into_iter()
-            .map(|c| markdown_to_excel(c, &format.clone().set_italic()))
-            .flatten()
+            .flat_map(|c| markdown_to_excel(c, &format.clone().set_italic()))
             .collect(),
         _ => vec![],
     }
