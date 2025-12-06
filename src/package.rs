@@ -702,6 +702,7 @@ impl EvidencePackage {
     ///
     /// - [`Error::Io`] if the evp couldn't be read at all.
     /// - [`Error::Zip`] if the evp file couldn't be read correctly.
+    // TODO Make this not need a mutable self!
     #[allow(clippy::missing_panics_doc)]
     pub fn get_media<S>(&mut self, hash: S) -> Result<Option<&MediaFile>>
     where

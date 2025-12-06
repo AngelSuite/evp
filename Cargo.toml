@@ -14,8 +14,8 @@ rust-version = "1.88.0"
 
 [features]
 default = ["exporter-html", "exporter-zip-of-files"]
-exporter-excel = ["dep:rust_xlsxwriter"]
-exporter-html = ["dep:build_html", "dep:html-escape"]
+exporter-excel = ["dep:markdown", "dep:rust_xlsxwriter"]
+exporter-html = ["dep:build_html", "dep:html-escape", "dep:markdown"]
 exporter-zip-of-files = []
 
 [dependencies]
@@ -27,6 +27,7 @@ getset = "0.1.2"
 html-escape = { version = "0.2.13", optional = true }
 infer = "0.19.0"
 jsonschema = "0.37.4"
+markdown = { version = "1.0.0", optional = true }
 rust_xlsxwriter = { version = "0.92.2", features = ["chrono"], optional = true }
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = "1.0.116"

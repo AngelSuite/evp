@@ -6,13 +6,19 @@ use std::{
 
 use thiserror::Error;
 use uuid::Uuid;
-use zip::{ZipWriter, write::SimpleFileOptions};
+use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
-use crate::prelude::{
-    Error, EvidenceData, EvidenceKind, EvidencePackage, Result as EVPResult, TestCase,
-};
+use crate::prelude::{Error, EvidenceData, EvidencePackage, Result as EVPResult, TestCase};
 
 use super::Exporter;
+
+/// Prefixes to MIME types that are treated as not-files
+const NOT_FILE_MIME_TYPES: &[&str] = &[
+    "image/",
+    "text/plain",
+    "text/markdown",
+    "text/vnd.angel.http-data",
+];
 
 /// An exporter to an ZIP of the files in the package.
 #[derive(Default)]
@@ -128,7 +134,14 @@ impl Exporter for ZipOfFilesExporter {
 /// Check is this test case contains any file evidence
 fn check_has_files(test_case: &TestCase) -> bool {
     for ev in test_case.evidence() {
-        if let EvidenceKind::File = ev.kind() {
+        let mut is_file = true;
+        for kind in NOT_FILE_MIME_TYPES {
+            if ev.kind().starts_with(kind) {
+                is_file = false;
+                break;
+            }
+        }
+        if is_file {
             return true;
         }
     }
@@ -145,9 +158,15 @@ fn add_test_case_to_zip(
 
     let mut filename_count = HashMap::new();
     for ev in test_case.evidence() {
-        if let EvidenceKind::File = ev.kind()
-            && let Some(filename) = ev.original_filename()
-        {
+        let mut is_file = true;
+        for kind in NOT_FILE_MIME_TYPES {
+            if ev.kind().starts_with(kind) {
+                is_file = false;
+                break;
+            }
+        }
+
+        if is_file && let Some(filename) = ev.original_filename() {
             filename_count.insert(filename, filename_count.get(filename).unwrap_or(&0) + 1);
         }
     }
@@ -156,7 +175,15 @@ fn add_test_case_to_zip(
 
     // Write evidence
     for evidence in test_case.evidence() {
-        if let EvidenceKind::File = evidence.kind() {
+        let mut is_file = true;
+        for kind in NOT_FILE_MIME_TYPES {
+            if evidence.kind().starts_with(kind) {
+                is_file = false;
+                break;
+            }
+        }
+
+        if is_file {
             let data = evidence.value().get_data(&mut package)?;
 
             let name = if let Some(filename) = evidence.original_filename() {

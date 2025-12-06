@@ -1,13 +1,12 @@
 use std::fmt::Write;
 use std::fs;
 
-use crate::angelmark::{AngelmarkLine, AngelmarkTableAlignment, AngelmarkText, parse_angelmark};
 use base64::Engine;
 use build_html::{Html, HtmlContainer, HtmlElement, HtmlPage, HtmlTag};
 use uuid::Uuid;
 
 use crate::prelude::{
-    Error, EvidenceData, EvidenceKind, EvidencePackage, MediaFile, Result as EVPResult, TestCase,
+    Error, EvidenceData, EvidencePackage, MediaFile, Result as EVPResult, TestCase,
     TestCasePassStatus,
 };
 
@@ -205,7 +204,7 @@ fn create_test_case_div(
         for (key, value) in fields {
             let field = package
                 .metadata()
-                .custom_test_case_metadata()
+                .custom_metadata()
                 .as_ref()
                 // SAFETY: guanteed by EVP spec
                 .unwrap()
@@ -237,8 +236,8 @@ fn create_test_case_div(
             );
         }
 
-        match evidence.kind() {
-            EvidenceKind::Text => {
+        match evidence.kind().as_str() {
+            "text/plain" => {
                 let data = evidence.value().get_data(&mut package)?;
                 let text = String::from_utf8_lossy(data.as_slice());
                 for line in text.lines() {
@@ -248,128 +247,12 @@ fn create_test_case_div(
                     );
                 }
             }
-            EvidenceKind::RichText => {
+            "text/markdown" => {
                 let data = evidence.value().get_data(&mut package)?;
                 let text = String::from_utf8_lossy(data.as_slice());
-                if let Ok(rich_text) = parse_angelmark(&text) {
-                    for line in rich_text {
-                        match line {
-                            AngelmarkLine::Newline(_span) => {
-                                elem.add_html(HtmlElement::new(HtmlTag::LineBreak));
-                            }
-                            AngelmarkLine::Heading1(angelmark_texts, _span) => {
-                                let mut h = HtmlElement::new(HtmlTag::Heading1);
-                                for angelmark in angelmark_texts {
-                                    h.add_html(angelmark_to_html(
-                                        &angelmark,
-                                        HtmlElement::new(HtmlTag::Span),
-                                    ));
-                                }
-                                elem.add_html(h);
-                            }
-                            AngelmarkLine::Heading2(angelmark_texts, _span) => {
-                                let mut h = HtmlElement::new(HtmlTag::Heading2);
-                                for angelmark in angelmark_texts {
-                                    h.add_html(angelmark_to_html(
-                                        &angelmark,
-                                        HtmlElement::new(HtmlTag::Span),
-                                    ));
-                                }
-                                elem.add_html(h);
-                            }
-                            AngelmarkLine::Heading3(angelmark_texts, _span) => {
-                                let mut h = HtmlElement::new(HtmlTag::Heading3);
-                                for angelmark in angelmark_texts {
-                                    h.add_html(angelmark_to_html(
-                                        &angelmark,
-                                        HtmlElement::new(HtmlTag::Span),
-                                    ));
-                                }
-                                elem.add_html(h);
-                            }
-                            AngelmarkLine::Heading4(angelmark_texts, _span) => {
-                                let mut h = HtmlElement::new(HtmlTag::Heading4);
-                                for angelmark in angelmark_texts {
-                                    h.add_html(angelmark_to_html(
-                                        &angelmark,
-                                        HtmlElement::new(HtmlTag::Span),
-                                    ));
-                                }
-                                elem.add_html(h);
-                            }
-                            AngelmarkLine::Heading5(angelmark_texts, _span) => {
-                                let mut h = HtmlElement::new(HtmlTag::Heading5);
-                                for angelmark in angelmark_texts {
-                                    h.add_html(angelmark_to_html(
-                                        &angelmark,
-                                        HtmlElement::new(HtmlTag::Span),
-                                    ));
-                                }
-                                elem.add_html(h);
-                            }
-                            AngelmarkLine::Heading6(angelmark_texts, _span) => {
-                                let mut h = HtmlElement::new(HtmlTag::Heading6);
-                                for angelmark in angelmark_texts {
-                                    h.add_html(angelmark_to_html(
-                                        &angelmark,
-                                        HtmlElement::new(HtmlTag::Span),
-                                    ));
-                                }
-                                elem.add_html(h);
-                            }
-                            AngelmarkLine::TextLine(angelmark, _span) => elem.add_html(
-                                angelmark_to_html(&angelmark, HtmlElement::new(HtmlTag::Span)),
-                            ),
-                            AngelmarkLine::Table(table, _span) => {
-                                let mut t = HtmlElement::new(HtmlTag::Table);
-                                for row in table.rows() {
-                                    let mut r = HtmlElement::new(HtmlTag::TableRow);
-                                    for (col, cell) in row.cells().iter().enumerate() {
-                                        let align =
-                                            table.alignment().column_alignments()[col].alignment();
-                                        let mut d = HtmlElement::new(HtmlTag::TableCell)
-                                            .with_attribute(
-                                                "style",
-                                                format!(
-                                                    "text-align:{}",
-                                                    match align {
-                                                        AngelmarkTableAlignment::Left => "left",
-                                                        AngelmarkTableAlignment::Center => "center",
-                                                        AngelmarkTableAlignment::Right => "right",
-                                                    }
-                                                ),
-                                            );
-                                        for angelmark in cell.content() {
-                                            d.add_html(angelmark_to_html(
-                                                angelmark,
-                                                HtmlElement::new(HtmlTag::Span),
-                                            ));
-                                        }
-                                        r.add_html(d);
-                                    }
-                                    t.add_html(r);
-                                }
-                                elem.add_html(t);
-                            }
-                        }
-                    }
-                    elem.add_html(HtmlElement::new(HtmlTag::LineBreak));
-                } else {
-                    elem.add_html(HtmlElement::new(HtmlTag::CodeText).with_preformatted(text));
-                }
+                elem.add_raw(markdown::to_html(&text));
             }
-            EvidenceKind::Image => {
-                let data = evidence.value().get_data(&mut package)?;
-                let media = MediaFile::from(data);
-                if let Some(mime) = media.mime_type() {
-                    let data = base64::prelude::BASE64_STANDARD_NO_PAD.encode(media.data());
-                    elem.add_html(
-                        HtmlElement::new(HtmlTag::Image)
-                            .with_attribute("src", format!("data:{mime};base64,{data}")),
-                    );
-                }
-            }
-            EvidenceKind::Http => {
+            "text/vnd.angel.http-data" => {
                 let data = evidence.value().get_data(&mut package)?;
                 let data = String::from_utf8_lossy(data.as_slice());
                 let data_parts = data
@@ -406,75 +289,56 @@ fn create_test_case_div(
                         ),
                 );
             }
-            EvidenceKind::File => {
-                let data = evidence.value().get_data(&mut package)?;
-                let data = base64::prelude::BASE64_STANDARD_NO_PAD.encode(data);
-                let mime = if let EvidenceData::Media { hash } = evidence.value() {
-                    if let Some(media) = package.get_media(hash).ok().flatten() {
-                        if let Some(mime) = media.mime_type() {
-                            mime.to_string()
+            mime => {
+                if mime.starts_with("image/") {
+                    let data = evidence.value().get_data(&mut package)?;
+                    let media = MediaFile::from(data);
+                    if let Some(mime) = media.mime_type() {
+                        let data = base64::prelude::BASE64_STANDARD_NO_PAD.encode(media.data());
+                        elem.add_html(
+                            HtmlElement::new(HtmlTag::Image)
+                                .with_attribute("src", format!("data:{mime};base64,{data}")),
+                        );
+                    }
+                } else {
+                    let data = evidence.value().get_data(&mut package)?;
+                    let data = base64::prelude::BASE64_STANDARD_NO_PAD.encode(data);
+                    let mime = if let EvidenceData::Media { hash } = evidence.value() {
+                        if let Some(media) = package.get_media(hash).ok().flatten() {
+                            if let Some(mime) = media.mime_type() {
+                                mime.to_string()
+                            } else {
+                                "application/octet-stream".to_string()
+                            }
                         } else {
                             "application/octet-stream".to_string()
                         }
                     } else {
                         "application/octet-stream".to_string()
-                    }
-                } else {
-                    "application/octet-stream".to_string()
-                };
+                    };
 
-                elem.add_html(
-                    HtmlElement::new(HtmlTag::Div).with_html(
-                        HtmlElement::new(HtmlTag::Link)
-                            .with_attribute("href", format!("data:{mime};base64,{data}"))
-                            .with_attribute(
-                                "download",
-                                evidence
-                                    .original_filename()
-                                    .clone()
-                                    .unwrap_or(String::new()),
-                            )
-                            .with_raw(&if let Some(filename) = evidence.original_filename() {
-                                filename.clone()
-                            } else {
-                                "Unnamed file".to_string()
-                            }),
-                    ),
-                );
+                    elem.add_html(
+                        HtmlElement::new(HtmlTag::Div).with_html(
+                            HtmlElement::new(HtmlTag::Link)
+                                .with_attribute("href", format!("data:{mime};base64,{data}"))
+                                .with_attribute(
+                                    "download",
+                                    evidence
+                                        .original_filename()
+                                        .clone()
+                                        .unwrap_or(String::new()),
+                                )
+                                .with_raw(&if let Some(filename) = evidence.original_filename() {
+                                    filename.clone()
+                                } else {
+                                    "Unnamed file".to_string()
+                                }),
+                        ),
+                    );
+                }
             }
         }
     }
 
     Ok(elem)
-}
-
-/// Convert Angelmark to HTML elements
-fn angelmark_to_html(angelmark: &AngelmarkText, mut elem: HtmlElement) -> HtmlElement {
-    match angelmark {
-        AngelmarkText::Raw(txt, _span) => elem.with_raw(html_escape::encode_text(txt)),
-        AngelmarkText::Bold(content, _span) => {
-            if let Some((_k, v)) = elem.attributes.iter_mut().find(|(k, _v)| k == "class") {
-                v.push_str(" richtext-bold");
-            } else {
-                elem.add_attribute("class", "richtext-bold");
-            }
-            angelmark_to_html(content, elem)
-        }
-        AngelmarkText::Italic(content, _span) => {
-            if let Some((_k, v)) = elem.attributes.iter_mut().find(|(k, _v)| k == "class") {
-                v.push_str(" richtext-italic");
-            } else {
-                elem.add_attribute("class", "richtext-italic");
-            }
-            angelmark_to_html(content, elem)
-        }
-        AngelmarkText::Monospace(content, _span) => {
-            if let Some((_k, v)) = elem.attributes.iter_mut().find(|(k, _v)| k == "class") {
-                v.push_str(" richtext-monospace");
-            } else {
-                elem.add_attribute("class", "richtext-monospace");
-            }
-            angelmark_to_html(content, elem)
-        }
-    }
 }

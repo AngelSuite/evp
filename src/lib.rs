@@ -12,7 +12,7 @@
 //! defined by Internet Draft [draft-hopkins-evp-spec](https://hpkns.uk/evp)
 
 /// Exporters allow packages and test cases to be exported to different file formats.
-// pub mod exporters;
+pub mod exporters;
 /// Locking file
 mod lock_file;
 /// The types of data in a package
