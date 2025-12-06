@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     fmt,
     io::{self, BufReader, Read, Write},
@@ -39,10 +40,10 @@ const MANIFEST_SCHEMA_V1: &str = include_str!("../schemas/manifest.1.schema.json
 pub struct EvidencePackage {
     /// The internal ZIP file. This will never be `None`, as long as it has been correctly parsed.
     #[serde(skip)]
-    zip: ZipReaderWriter,
+    zip: RefCell<ZipReaderWriter>,
     /// The actual media data from this package
     #[serde(skip)]
-    media_data: HashMap<String, MediaFile>,
+    media_data: RefCell<HashMap<String, MediaFile>>,
     /// The actual test data from this package
     #[serde(skip)]
     test_case_data: HashMap<Uuid, TestCase>,
@@ -67,7 +68,7 @@ impl Clone for EvidencePackage {
     fn clone(&self) -> Self {
         Self {
             zip: self.zip.clone(),
-            media_data: HashMap::new(),
+            media_data: RefCell::new(HashMap::new()),
             test_case_data: self.test_case_data.clone(),
             extra_fields: HashMap::new(),
 
@@ -128,9 +129,9 @@ impl EvidencePackage {
         authors: &[A],
     ) -> Result<Self> {
         // Create manifest data.
-        let mut manifest = Self {
-            zip: ZipReaderWriter::new(path)?,
-            media_data: HashMap::new(),
+        let manifest = Self {
+            zip: RefCell::new(ZipReaderWriter::new(path)?),
+            media_data: RefCell::new(HashMap::new()),
             test_case_data: HashMap::new(),
 
             schema: Some(MANIFEST_SCHEMA_LOCATION.to_string()),
@@ -147,32 +148,37 @@ impl EvidencePackage {
         };
         let manifest_clone = manifest.clone_serde();
 
-        // Create ZIP file
-        let (_, zip) = manifest.zip.as_writer()?;
-        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+        {
+            // Create ZIP file
+            let mut zip_ref = manifest.zip.borrow_mut();
+            let (_, zip) = zip_ref.as_writer()?;
+            let options =
+                SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
-        // Create empty structure.
-        zip.add_directory("media", options)?;
-        zip.add_directory("test_cases", options)?;
+            // Create empty structure.
+            zip.add_directory("media", options)?;
+            zip.add_directory("test_cases", options)?;
 
-        let manifest_data =
-            serde_json::to_string(&manifest_clone).map_err(Error::FailedToCreatePackage)?;
-        if !jsonschema::is_valid(
-            &serde_json::from_str(MANIFEST_SCHEMA).expect("Schema is validated statically"),
-            &serde_json::from_str(&manifest_data).expect("JSON just generated, shouldn't fail"),
-        ) {
-            return Err(Error::ManifestSchemaValidationFailed);
+            let manifest_data =
+                serde_json::to_string(&manifest_clone).map_err(Error::FailedToCreatePackage)?;
+            if !jsonschema::is_valid(
+                &serde_json::from_str(MANIFEST_SCHEMA).expect("Schema is validated statically"),
+                &serde_json::from_str(&manifest_data).expect("JSON just generated, shouldn't fail"),
+            ) {
+                return Err(Error::ManifestSchemaValidationFailed);
+            }
+
+            // Write ZIP file.
+            zip.start_file("manifest.json", options)?;
+            zip.write_all(manifest_data.as_bytes())?;
+            zip_ref.conclude_write()?;
         }
-
-        // Write ZIP file.
-        zip.start_file("manifest.json", options)?;
-        zip.write_all(manifest_data.as_bytes())?;
-        manifest.zip.conclude_write()?;
 
         Ok(manifest)
     }
 
-    /// Save the package to disk.
+    /// Save the package to disk. This also removes any media that is
+    /// unreferenced.
     ///
     /// # Panics
     ///
@@ -192,9 +198,10 @@ impl EvidencePackage {
         {
             // IMPORTANT!
             // This needs to be here to load the archive in read mode first, so that media can be migrated over.
-            let _reader = self.zip.as_reader()?;
+            let _reader = self.zip.borrow_mut().as_reader()?;
         }
-        let (mut maybe_old_archive, zip) = self.zip.as_writer()?;
+        let mut zip_ref = self.zip.borrow_mut();
+        let (mut maybe_old_archive, zip) = zip_ref.as_writer()?;
         let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
         // Create empty structure.
@@ -223,7 +230,7 @@ impl EvidencePackage {
                     &serde_json::from_str(TESTCASE_SCHEMA).expect("Schema is validated statically"),
                     &serde_json::from_str(&data).expect("JSON just generated, shouldn't fail"),
                 ) {
-                    let _ = self.zip.interrupt_write();
+                    let _ = zip_ref.interrupt_write();
                     return Err(Error::TestCaseSchemaValidationFailed);
                 }
                 zip.start_file(format!("test_cases/{id}.json"), options)?;
@@ -238,22 +245,26 @@ impl EvidencePackage {
             .media
             .retain(|entry| media_used.contains(&entry.sha256_checksum()));
 
-        // Scrub media map of unreferenced entries
-        self.media_data
-            .retain(|hash, _val| media_used.contains(&hash));
-        clone
-            .media_data
-            .retain(|hash, _val| media_used.contains(&hash));
+        {
+            // Scrub media map of unreferenced entries
+            self.media_data
+                .borrow_mut()
+                .retain(|hash, _val| media_used.contains(&hash));
+            clone
+                .media_data
+                .borrow_mut()
+                .retain(|hash, _val| media_used.contains(&hash));
+        }
 
         // Save media to package, either sourcing it from memory if present, or from the previous package.
         tracing::debug!("Media entries: {:?}", self.media);
         for entry in &self.media {
             let hash = entry.sha256_checksum();
             zip.start_file(format!("media/{hash}"), options)?;
-            if self.media_data.contains_key(hash) {
+            if self.media_data.borrow().contains_key(hash) {
                 // If in memory, write from there
                 tracing::trace!("Writing from cache {hash}");
-                zip.write_all(self.media_data.get(hash).unwrap().data())?;
+                zip.write_all(self.media_data.borrow().get(hash).unwrap().data())?;
             } else {
                 // Otherwise pull from previous package.
                 // Consider moving this to not load entire file on move.
@@ -285,12 +296,12 @@ impl EvidencePackage {
             &serde_json::from_str(MANIFEST_SCHEMA).expect("Schema is validated statically"),
             &serde_json::from_str(&manifest_data).expect("JSON just generated, shouldn't fail"),
         ) {
-            let _ = self.zip.interrupt_write();
+            let _ = zip_ref.interrupt_write();
             return Err(Error::ManifestSchemaValidationFailed);
         }
         zip.start_file("manifest.json", options)?;
         zip.write_all(manifest_data.as_bytes())?;
-        self.zip.conclude_write()?;
+        zip_ref.conclude_write()?;
         Ok(())
     }
 
@@ -378,15 +389,15 @@ impl EvidencePackage {
             }
         }
 
-        evidence_package.zip = zip_rw;
+        evidence_package.zip = RefCell::new(zip_rw);
         Ok(evidence_package)
     }
 
     /// Clone fields that will be serialized by serde
     fn clone_serde(&self) -> Self {
         Self {
-            zip: ZipReaderWriter::default(),
-            media_data: HashMap::new(),
+            zip: RefCell::new(ZipReaderWriter::default()),
+            media_data: RefCell::new(HashMap::new()),
             test_case_data: HashMap::new(),
 
             schema: Some(MANIFEST_SCHEMA_LOCATION.to_string()),
@@ -672,7 +683,7 @@ impl EvidencePackage {
     /// - [`Error::Io`] if the evp couldn't be read at all.
     /// - [`Error::Zip`] if the evp file couldn't be read correctly.
     #[allow(clippy::missing_panics_doc)]
-    pub fn add_media(&mut self, media_file: MediaFile) -> Result<&MediaFile> {
+    pub fn add_media(&mut self, media_file: MediaFile) -> Result<MediaFile> {
         let hash = media_file.hash();
 
         if !self
@@ -686,7 +697,9 @@ impl EvidencePackage {
 
             // Insert data and return reference
             tracing::trace!("New media cache entry: {hash}");
-            self.media_data.insert(hash.clone(), media_file);
+            self.media_data
+                .borrow_mut()
+                .insert(hash.clone(), media_file);
         }
 
         Ok(self.get_media(&hash)?.unwrap())
@@ -702,22 +715,22 @@ impl EvidencePackage {
     ///
     /// - [`Error::Io`] if the evp couldn't be read at all.
     /// - [`Error::Zip`] if the evp file couldn't be read correctly.
-    // TODO Make this not need a mutable self!
     #[allow(clippy::missing_panics_doc)]
-    pub fn get_media<S>(&mut self, hash: S) -> Result<Option<&MediaFile>>
+    pub fn get_media<S>(&self, hash: S) -> Result<Option<MediaFile>>
     where
         S: Into<String>,
     {
         let hash = hash.into();
 
         // Check in-memory cache
-        if self.media_data.contains_key(&hash) {
+        if self.media_data.borrow().contains_key(&hash) {
             tracing::debug!("{hash} found in cache.");
-            return Ok(self.media_data.get(&hash));
+            return Ok(self.media_data.borrow().get(&hash).cloned());
         }
 
         // Read from ZIP file
-        let zip = self.zip.as_reader()?;
+        let mut zip = self.zip.borrow_mut();
+        let zip = zip.as_reader()?;
         let res = zip.by_name(&format!("media/{}", hash.clone()));
         match res {
             Ok(file) => {
@@ -732,10 +745,10 @@ impl EvidencePackage {
                 // Add to in-memory cache
                 let media: MediaFile = buf.into();
                 tracing::trace!("New media cache entry: {hash}");
-                self.media_data.insert(hash.clone(), media);
+                self.media_data.borrow_mut().insert(hash.clone(), media);
 
                 // Return cached version
-                Ok(Some(self.media_data.get(&hash).unwrap()))
+                Ok(Some(self.media_data.borrow().get(&hash).cloned().unwrap()))
             }
             Err(ZipError::FileNotFound) => {
                 tracing::warn!("{hash} not found in package!");
