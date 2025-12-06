@@ -1,8 +1,8 @@
-use crate::angelmark::{AngelmarkLine, AngelmarkTableAlignment, AngelmarkText, parse_angelmark};
-use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Image, Note, Workbook, Worksheet};
+use markdown::{ParseOptions, mdast::Node};
+use rust_xlsxwriter::{Format, FormatBorder, Image, Note, Workbook, Worksheet};
 use uuid::Uuid;
 
-use crate::{EvidenceKind, EvidencePackage, TestCase, TestCasePassStatus};
+use crate::prelude::{Error, EvidencePackage, Result as EVPResult, TestCase, TestCasePassStatus};
 
 use super::Exporter;
 
@@ -23,26 +23,25 @@ impl Exporter for ExcelExporter {
         &mut self,
         package: &mut EvidencePackage,
         path: std::path::PathBuf,
-    ) -> crate::Result<()> {
+    ) -> EVPResult<()> {
         let mut workbook = Workbook::new();
         workbook.read_only_recommended();
 
         create_metadata_sheet(workbook.add_worksheet(), package)
-            .map_err(crate::Error::OtherExportError)?;
+            .map_err(Error::OtherExportError)?;
 
-        create_summary_sheet(workbook.add_worksheet(), package)
-            .map_err(crate::Error::OtherExportError)?;
+        create_summary_sheet(workbook.add_worksheet(), package).map_err(Error::OtherExportError)?;
 
         let test_cases: Vec<&TestCase> = package.test_case_iter()?.collect();
         for test_case in test_cases {
             let worksheet = workbook.add_worksheet();
             create_test_case_sheet(worksheet, package.clone(), test_case)
-                .map_err(crate::Error::OtherExportError)?;
+                .map_err(Error::OtherExportError)?;
         }
 
         workbook
             .save(path)
-            .map_err(|e| crate::Error::OtherExportError(e.into()))?;
+            .map_err(|e| Error::OtherExportError(e.into()))?;
 
         Ok(())
     }
@@ -52,21 +51,19 @@ impl Exporter for ExcelExporter {
         package: &mut EvidencePackage,
         case: Uuid,
         path: std::path::PathBuf,
-    ) -> crate::Result<()> {
+    ) -> EVPResult<()> {
         let mut workbook = Workbook::new();
 
         let worksheet = workbook.add_worksheet();
         let case = package
             .test_case(case)?
-            .ok_or(crate::Error::OtherExportError(
-                "Test case not found!".into(),
-            ))?;
+            .ok_or(Error::OtherExportError("Test case not found!".into()))?;
         create_test_case_sheet(worksheet, package.clone(), case)
-            .map_err(crate::Error::OtherExportError)?;
+            .map_err(Error::OtherExportError)?;
 
         workbook
             .save(path)
-            .map_err(|e| crate::Error::OtherExportError(e.into()))?;
+            .map_err(|e| Error::OtherExportError(e.into()))?;
 
         Ok(())
     }
@@ -135,7 +132,7 @@ fn create_summary_sheet(
     worksheet.write_string_with_format(row, 2, "Executed At", &bold_bordered)?;
     worksheet.write_string_with_format(row, 3, "Status", &bold_bordered)?;
     let mut custom_keys = vec![];
-    if let Some(fields) = package.metadata().custom_test_case_metadata() {
+    if let Some(fields) = package.metadata().custom_metadata() {
         let mut fields = fields.iter().collect::<Vec<_>>();
         fields.sort_by(|(_, a), (_, b)| a.cmp(b));
         for (idx, (key, field)) in fields.iter().enumerate() {
@@ -171,10 +168,10 @@ fn create_summary_sheet(
         for (idx, key) in custom_keys.iter().enumerate() {
             let col = u16::try_from(4 + idx)?;
             worksheet.write_string_with_format(row, col, "", &bordered)?;
-            if let Some(custom) = test_case.metadata().custom() {
-                if let Some(data) = custom.get(key) {
-                    worksheet.write_string_with_format(row, col, data, &bordered)?;
-                }
+            if let Some(custom) = test_case.metadata().custom()
+                && let Some(data) = custom.get(key)
+            {
+                worksheet.write_string_with_format(row, col, data, &bordered)?;
             }
         }
         row += 1;
@@ -232,7 +229,7 @@ fn create_test_case_sheet(
         for (key, value) in fields {
             let field = package
                 .metadata()
-                .custom_test_case_metadata()
+                .custom_metadata()
                 .as_ref()
                 // SAFETY: guanteed by EVP spec
                 .unwrap()
@@ -252,8 +249,8 @@ fn create_test_case_sheet(
             row += 1;
         }
 
-        match evidence.kind() {
-            EvidenceKind::Text => {
+        match evidence.kind().as_str() {
+            "text/plain" => {
                 let data = evidence.value().get_data(&mut package)?;
                 let text = String::from_utf8_lossy(data.as_slice());
                 for line in text.lines() {
@@ -261,200 +258,24 @@ fn create_test_case_sheet(
                     row += 1;
                 }
             }
-            EvidenceKind::RichText => {
+            "text/markdown" => {
                 let data = evidence.value().get_data(&mut package)?;
                 let text = String::from_utf8_lossy(data.as_slice());
 
-                if let Ok(mut rich_text) = parse_angelmark(&text) {
-                    if !matches!(rich_text.last(), Some(AngelmarkLine::Newline(_))) {
-                        rich_text.push(AngelmarkLine::Newline(
-                            crate::angelmark::OwnedSpan::default(),
-                        ));
-                    }
-                    let mut line_buffer: Vec<(Format, String)> = vec![];
-                    for line in rich_text {
-                        match line {
-                            AngelmarkLine::Newline(_span) => {
-                                if !line_buffer.is_empty() {
-                                    worksheet.write_rich_string(
-                                        row,
-                                        1,
-                                        &line_buffer
-                                            .iter()
-                                            .map(|(f, s)| (f, s.as_str()))
-                                            .collect::<Vec<_>>(),
-                                    )?;
-                                    line_buffer.clear();
-                                }
-                                row += 1;
-                            }
-                            AngelmarkLine::Heading1(angelmark, _span) => {
-                                let fragments = angelmark
-                                    .iter()
-                                    .map(|text| {
-                                        angelmark_to_excel(
-                                            text,
-                                            Format::default().set_font_size(32),
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
-                                let fragments = fragments
-                                    .iter()
-                                    .map(|(f, s)| (f, s.as_str()))
-                                    .collect::<Vec<_>>();
-                                if !fragments.is_empty() {
-                                    worksheet.write_rich_string(row, 1, &fragments)?;
-                                    worksheet.set_row_height(row, 36)?;
-                                }
-                                row += 1;
-                            }
-                            AngelmarkLine::Heading2(angelmark, _span) => {
-                                let fragments = angelmark
-                                    .iter()
-                                    .map(|text| {
-                                        angelmark_to_excel(
-                                            text,
-                                            Format::default().set_font_size(28),
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
-                                let fragments = fragments
-                                    .iter()
-                                    .map(|(f, s)| (f, s.as_str()))
-                                    .collect::<Vec<_>>();
-                                if !fragments.is_empty() {
-                                    worksheet.write_rich_string(row, 1, &fragments)?;
-                                    worksheet.set_row_height(row, 32)?;
-                                }
-                                row += 1;
-                            }
-                            AngelmarkLine::Heading3(angelmark, _span) => {
-                                let fragments = angelmark
-                                    .iter()
-                                    .map(|text| {
-                                        angelmark_to_excel(
-                                            text,
-                                            Format::default().set_font_size(24),
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
-                                let fragments = fragments
-                                    .iter()
-                                    .map(|(f, s)| (f, s.as_str()))
-                                    .collect::<Vec<_>>();
-                                if !fragments.is_empty() {
-                                    worksheet.write_rich_string(row, 1, &fragments)?;
-                                    worksheet.set_row_height(row, 28)?;
-                                }
-                                row += 1;
-                            }
-                            AngelmarkLine::Heading4(angelmark, _span) => {
-                                let fragments = angelmark
-                                    .iter()
-                                    .map(|text| {
-                                        angelmark_to_excel(
-                                            text,
-                                            Format::default().set_font_size(18),
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
-                                let fragments = fragments
-                                    .iter()
-                                    .map(|(f, s)| (f, s.as_str()))
-                                    .collect::<Vec<_>>();
-                                if !fragments.is_empty() {
-                                    worksheet.write_rich_string(row, 1, &fragments)?;
-                                    worksheet.set_row_height(row, 22)?;
-                                }
-                                row += 1;
-                            }
-                            AngelmarkLine::Heading5(angelmark, _span) => {
-                                let fragments = angelmark
-                                    .iter()
-                                    .map(|text| {
-                                        angelmark_to_excel(
-                                            text,
-                                            Format::default().set_font_size(16),
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
-                                let fragments = fragments
-                                    .iter()
-                                    .map(|(f, s)| (f, s.as_str()))
-                                    .collect::<Vec<_>>();
-                                if !fragments.is_empty() {
-                                    worksheet.write_rich_string(row, 1, &fragments)?;
-                                    worksheet.set_row_height(row, 20)?;
-                                }
-                                row += 1;
-                            }
-                            AngelmarkLine::Heading6(angelmark, _span) => {
-                                let fragments = angelmark
-                                    .iter()
-                                    .map(|text| {
-                                        angelmark_to_excel(
-                                            text,
-                                            Format::default().set_font_size(14),
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
-                                let fragments = fragments
-                                    .iter()
-                                    .map(|(f, s)| (f, s.as_str()))
-                                    .collect::<Vec<_>>();
-                                if !fragments.is_empty() {
-                                    worksheet.write_rich_string(row, 1, &fragments)?;
-                                    worksheet.set_row_height(row, 18)?;
-                                }
-                                row += 1;
-                            }
-                            AngelmarkLine::TextLine(angelmark, _span) => {
-                                line_buffer.push(angelmark_to_excel(&angelmark, Format::default()));
-                            }
-                            AngelmarkLine::Table(table, _span) => {
-                                for table_row in table.rows() {
-                                    for (col, cell) in table_row.cells().iter().enumerate() {
-                                        let fragments = cell
-                                            .content()
-                                            .iter()
-                                            .map(|text| {
-                                                angelmark_to_excel(
-                                                    text,
-                                                    Format::default().set_font_size(14),
-                                                )
-                                            })
-                                            .collect::<Vec<_>>();
-                                        let c = col as u16 + 1;
-                                        let align =
-                                            table.alignment().column_alignments()[col].alignment();
-                                        worksheet.set_cell_format(
-                                            row,
-                                            c,
-                                            &Format::default().set_align(match align {
-                                                AngelmarkTableAlignment::Left => FormatAlign::Left,
-                                                AngelmarkTableAlignment::Center => {
-                                                    FormatAlign::Center
-                                                }
-                                                AngelmarkTableAlignment::Right => {
-                                                    FormatAlign::Right
-                                                }
-                                            }),
-                                        )?;
-                                        if !fragments.is_empty() {
-                                            worksheet.write_rich_string(
-                                                row,
-                                                c,
-                                                &fragments
-                                                    .iter()
-                                                    .map(|(f, s)| (f, s.as_str()))
-                                                    .collect::<Vec<_>>(),
-                                            )?;
-                                        }
-                                    }
-                                    row += 1;
-                                }
-                            }
-                        }
+                if let Ok(ast) = markdown::to_mdast(&text, &ParseOptions::default()) {
+                    let excel_data = markdown_to_excel(ast, &Format::default());
+                    for line in excel_data {
+                        let line = line
+                            .iter()
+                            .map(|(a, b)| (a, b.as_str()))
+                            .collect::<Vec<_>>();
+                        worksheet.write_rich_string_with_format(
+                            row,
+                            1,
+                            line.iter().as_slice(),
+                            &Format::default(),
+                        )?;
+                        row += 1;
                     }
                 } else {
                     for line in text.lines() {
@@ -468,18 +289,7 @@ fn create_test_case_sheet(
                     }
                 }
             }
-            EvidenceKind::Image => {
-                let data = evidence.value().get_data(&mut package)?;
-                let image = Image::new_from_buffer(data.as_slice())?;
-                worksheet.insert_image(row, 1, &image)?;
-
-                // Calculate row offset
-                let height_in = image.height() / image.height_dpi();
-                let row_units_per_in = 4.87;
-                let num_rows_to_skip = (height_in * row_units_per_in).ceil() as u32;
-                row += num_rows_to_skip;
-            }
-            EvidenceKind::Http => {
+            "text/vnd.angel.http-data" => {
                 worksheet.write_string_with_format(row, 1, "HTTP Request", &bold)?;
                 row += 1;
                 let data = evidence.value().get_data(&mut package)?;
@@ -489,32 +299,44 @@ fn create_test_case_sheet(
                     row += 1;
                 }
             }
-            EvidenceKind::File => {
-                let data = evidence.value().get_data(&mut package)?;
-                let text = String::from_utf8_lossy(data.as_slice());
+            mime => {
+                if mime.starts_with("image/") {
+                    let data = evidence.value().get_data(&mut package)?;
+                    let image: Image = Image::new_from_buffer(data.as_slice())?;
+                    worksheet.insert_image(row, 1, &image)?;
 
-                if let Some(filename) = evidence.original_filename() {
-                    worksheet.write_string(row, 1, filename)?;
-                    row += 1;
-                }
+                    // Calculate row offset
+                    let height_in = image.height() / image.height_dpi();
+                    let row_units_per_in = 4.87;
+                    let num_rows_to_skip = (height_in * row_units_per_in).ceil() as u32;
+                    row += num_rows_to_skip;
+                } else {
+                    let data = evidence.value().get_data(&mut package)?;
+                    let text = String::from_utf8_lossy(data.as_slice());
 
-                // Check if plaintext ASCII
-                let mut is_printable = true;
-                for c in text.chars() {
-                    if !c.is_ascii() {
-                        is_printable = false;
-                        break;
-                    }
-                }
-
-                if is_printable {
-                    for line in text.lines() {
-                        worksheet.write_string_with_format(row, 1, line, &file_data)?;
+                    if let Some(filename) = evidence.original_filename() {
+                        worksheet.write_string(row, 1, filename)?;
                         row += 1;
                     }
-                } else {
-                    worksheet.write_string_with_format(row, 1, "binary file data", &italic)?;
-                    row += 1;
+
+                    // Check if plaintext ASCII
+                    let mut is_printable = true;
+                    for c in text.chars() {
+                        if !c.is_ascii() {
+                            is_printable = false;
+                            break;
+                        }
+                    }
+
+                    if is_printable {
+                        for line in text.lines() {
+                            worksheet.write_string_with_format(row, 1, line, &file_data)?;
+                            row += 1;
+                        }
+                    } else {
+                        worksheet.write_string_with_format(row, 1, "binary file data", &italic)?;
+                        row += 1;
+                    }
                 }
             }
         }
@@ -525,14 +347,69 @@ fn create_test_case_sheet(
     Ok(())
 }
 
-/// Convert Angelmark to Excel format data
-fn angelmark_to_excel(angelmark: &AngelmarkText, format: Format) -> (Format, String) {
-    match angelmark {
-        AngelmarkText::Raw(txt, _span) => (format, txt.clone()),
-        AngelmarkText::Bold(content, _span) => angelmark_to_excel(content, format.set_bold()),
-        AngelmarkText::Italic(content, _span) => angelmark_to_excel(content, format.set_italic()),
-        AngelmarkText::Monospace(content, _span) => {
-            angelmark_to_excel(content, format.set_font_name("Courier New"))
+/// Convert Markdown AST to an array of lines, each an array of line
+/// elements defining a format and associated text.
+fn markdown_to_excel(node: Node, format: &Format) -> Vec<Vec<(Format, String)>> {
+    match node {
+        Node::Root(root) => root
+            .children
+            .into_iter()
+            .flat_map(|c| markdown_to_excel(c, format))
+            .collect(),
+        Node::Paragraph(para) => para
+            .children
+            .into_iter()
+            .flat_map(|c| markdown_to_excel(c, format))
+            .collect(),
+        Node::List(list) => list
+            .children
+            .into_iter()
+            .flat_map(|c| markdown_to_excel(c, format))
+            .collect(),
+        Node::ListItem(item) => {
+            let mut item = item
+                .children
+                .into_iter()
+                .flat_map(|c| markdown_to_excel(c, format))
+                .collect::<Vec<_>>();
+            if let Some(fir) = item.first_mut() {
+                fir.insert(0, (format.clone(), "• ".to_string()));
+            }
+            item
         }
+        Node::Heading(hdg) => {
+            let font_sizes = [32, 28, 24, 18, 16, 14];
+            let size = font_sizes.get(usize::from(hdg.depth)).unwrap_or(&14);
+            hdg.children
+                .into_iter()
+                .flat_map(|c| markdown_to_excel(c, &format.clone().set_font_size(*size)))
+                .collect()
+        }
+        Node::Code(code) => {
+            vec![vec![(
+                format.clone().set_font_name("Courier New"),
+                code.value,
+            )]]
+        }
+        Node::Text(text) => {
+            vec![vec![(format.clone(), text.value)]]
+        }
+        Node::InlineCode(code) => {
+            vec![vec![(
+                format.clone().set_font_name("Courier New"),
+                code.value,
+            )]]
+        }
+        Node::Strong(strong) => strong
+            .children
+            .into_iter()
+            .flat_map(|c| markdown_to_excel(c, &format.clone().set_bold()))
+            .collect(),
+        Node::Emphasis(emph) => emph
+            .children
+            .into_iter()
+            .flat_map(|c| markdown_to_excel(c, &format.clone().set_italic()))
+            .collect(),
+        _ => vec![],
     }
 }

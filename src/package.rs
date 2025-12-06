@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     fmt,
     io::{self, BufReader, Read, Write},
@@ -10,9 +11,9 @@ use getset::{Getters, MutGetters};
 use serde::{Deserialize, Serialize};
 use test_cases::TESTCASE_SCHEMA;
 use uuid::Uuid;
-use zip::{result::ZipError, write::SimpleFileOptions};
+use zip::{CompressionMethod, result::ZipError, write::SimpleFileOptions};
 
-use crate::{Result, result::Error, zip_read_writer::ZipReaderWriter};
+use crate::{prelude::*, zip_read_writer::ZipReaderWriter};
 
 /// Package manifests
 mod manifest;
@@ -24,9 +25,7 @@ pub use media::MediaFile;
 
 /// Test cases from packages
 mod test_cases;
-pub use test_cases::{
-    Evidence, EvidenceData, EvidenceKind, TestCase, TestCaseMetadata, TestCasePassStatus,
-};
+pub use test_cases::{Evidence, EvidenceData, TestCase, TestCaseMetadata, TestCasePassStatus};
 
 /// The URL for $schema for manifest.json
 const MANIFEST_SCHEMA_LOCATION: &str =
@@ -41,10 +40,10 @@ const MANIFEST_SCHEMA_V1: &str = include_str!("../schemas/manifest.1.schema.json
 pub struct EvidencePackage {
     /// The internal ZIP file. This will never be `None`, as long as it has been correctly parsed.
     #[serde(skip)]
-    zip: ZipReaderWriter,
+    zip: RefCell<ZipReaderWriter>,
     /// The actual media data from this package
     #[serde(skip)]
-    media_data: HashMap<String, MediaFile>,
+    media_data: RefCell<HashMap<String, MediaFile>>,
     /// The actual test data from this package
     #[serde(skip)]
     test_case_data: HashMap<Uuid, TestCase>,
@@ -69,7 +68,7 @@ impl Clone for EvidencePackage {
     fn clone(&self) -> Self {
         Self {
             zip: self.zip.clone(),
-            media_data: HashMap::new(),
+            media_data: RefCell::new(HashMap::new()),
             test_case_data: self.test_case_data.clone(),
             extra_fields: HashMap::new(),
 
@@ -104,7 +103,11 @@ impl EvidencePackage {
         clippy::missing_panics_doc,
         reason = "panics have been statically validated to never occur"
     )]
-    pub fn new(path: PathBuf, title: String, authors: Vec<Author>) -> Result<Self> {
+    pub fn new<S: Into<String>, A: Clone + Into<Author>>(
+        path: PathBuf,
+        title: S,
+        authors: &[A],
+    ) -> Result<Self> {
         Self::new_with_description(path, title, None, authors)
     }
 
@@ -119,58 +122,63 @@ impl EvidencePackage {
         clippy::missing_panics_doc,
         reason = "panics have been statically validated to never occur"
     )]
-    pub fn new_with_description(
+    pub fn new_with_description<S: Into<String>, A: Clone + Into<Author>>(
         path: PathBuf,
-        title: String,
+        title: S,
         description: Option<String>,
-        authors: Vec<Author>,
+        authors: &[A],
     ) -> Result<Self> {
         // Create manifest data.
-        let mut manifest = Self {
-            zip: ZipReaderWriter::new(path)?,
-            media_data: HashMap::new(),
+        let manifest = Self {
+            zip: RefCell::new(ZipReaderWriter::new(path)?),
+            media_data: RefCell::new(HashMap::new()),
             test_case_data: HashMap::new(),
 
             schema: Some(MANIFEST_SCHEMA_LOCATION.to_string()),
             media: vec![],
             test_cases: vec![],
             metadata: Metadata {
-                title,
+                title: title.into(),
                 description,
-                authors,
-                custom_test_case_metadata: None,
+                authors: authors.iter().cloned().map(Into::into).collect(),
+                custom_metadata: None,
                 extra_fields: HashMap::new(),
             },
             extra_fields: HashMap::new(),
         };
         let manifest_clone = manifest.clone_serde();
 
-        // Create ZIP file
-        let (_, zip) = manifest.zip.as_writer()?;
-        let options = SimpleFileOptions::default();
+        {
+            // Create ZIP file
+            let mut zip_ref = manifest.zip.borrow_mut();
+            let (_, zip) = zip_ref.as_writer()?;
+            let options =
+                SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
-        // Create empty structure.
-        zip.add_directory("media", options)?;
-        zip.add_directory("testcases", options)?;
+            // Create empty structure.
+            zip.add_directory("media", options)?;
+            zip.add_directory("test_cases", options)?;
 
-        let manifest_data =
-            serde_json::to_string(&manifest_clone).map_err(Error::FailedToCreatePackage)?;
-        if !jsonschema::is_valid(
-            &serde_json::from_str(MANIFEST_SCHEMA).expect("Schema is validated statically"),
-            &serde_json::from_str(&manifest_data).expect("JSON just generated, shouldn't fail"),
-        ) {
-            return Err(Error::ManifestSchemaValidationFailed);
+            let manifest_data =
+                serde_json::to_string(&manifest_clone).map_err(Error::FailedToCreatePackage)?;
+            if !jsonschema::is_valid(
+                &serde_json::from_str(MANIFEST_SCHEMA).expect("Schema is validated statically"),
+                &serde_json::from_str(&manifest_data).expect("JSON just generated, shouldn't fail"),
+            ) {
+                return Err(Error::ManifestSchemaValidationFailed);
+            }
+
+            // Write ZIP file.
+            zip.start_file("manifest.json", options)?;
+            zip.write_all(manifest_data.as_bytes())?;
+            zip_ref.conclude_write()?;
         }
-
-        // Write ZIP file.
-        zip.start_file("manifest.json", options)?;
-        zip.write_all(manifest_data.as_bytes())?;
-        manifest.zip.conclude_write()?;
 
         Ok(manifest)
     }
 
-    /// Save the package to disk.
+    /// Save the package to disk. This also removes any media that is
+    /// unreferenced.
     ///
     /// # Panics
     ///
@@ -190,14 +198,15 @@ impl EvidencePackage {
         {
             // IMPORTANT!
             // This needs to be here to load the archive in read mode first, so that media can be migrated over.
-            let _reader = self.zip.as_reader()?;
+            let _reader = self.zip.borrow_mut().as_reader()?;
         }
-        let (mut maybe_old_archive, zip) = self.zip.as_writer()?;
-        let options = SimpleFileOptions::default();
+        let mut zip_ref = self.zip.borrow_mut();
+        let (mut maybe_old_archive, zip) = zip_ref.as_writer()?;
+        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
         // Create empty structure.
         zip.add_directory("media", options)?;
-        zip.add_directory("testcases", options)?;
+        zip.add_directory("test_cases", options)?;
 
         tracing::trace!("Current media cache: {:?}", self.media_data);
 
@@ -216,14 +225,15 @@ impl EvidencePackage {
 
                 let data = serde_json::to_string(data)
                     .map_err(crate::result::Error::FailedToSaveTestCase)?;
+                tracing::trace!("Generated test case manifest:\n{data}");
                 if !jsonschema::is_valid(
                     &serde_json::from_str(TESTCASE_SCHEMA).expect("Schema is validated statically"),
                     &serde_json::from_str(&data).expect("JSON just generated, shouldn't fail"),
                 ) {
-                    let _ = self.zip.interrupt_write();
+                    let _ = zip_ref.interrupt_write();
                     return Err(Error::TestCaseSchemaValidationFailed);
                 }
-                zip.start_file(format!("testcases/{id}.json"), options)?;
+                zip.start_file(format!("test_cases/{id}.json"), options)?;
                 zip.write_all(data.as_bytes())?;
             }
         }
@@ -235,22 +245,26 @@ impl EvidencePackage {
             .media
             .retain(|entry| media_used.contains(&entry.sha256_checksum()));
 
-        // Scrub media map of unreferenced entries
-        self.media_data
-            .retain(|hash, _val| media_used.contains(&hash));
-        clone
-            .media_data
-            .retain(|hash, _val| media_used.contains(&hash));
+        {
+            // Scrub media map of unreferenced entries
+            self.media_data
+                .borrow_mut()
+                .retain(|hash, _val| media_used.contains(&hash));
+            clone
+                .media_data
+                .borrow_mut()
+                .retain(|hash, _val| media_used.contains(&hash));
+        }
 
         // Save media to package, either sourcing it from memory if present, or from the previous package.
         tracing::debug!("Media entries: {:?}", self.media);
         for entry in &self.media {
             let hash = entry.sha256_checksum();
             zip.start_file(format!("media/{hash}"), options)?;
-            if self.media_data.contains_key(hash) {
+            if self.media_data.borrow().contains_key(hash) {
                 // If in memory, write from there
                 tracing::trace!("Writing from cache {hash}");
-                zip.write_all(self.media_data.get(hash).unwrap().data())?;
+                zip.write_all(self.media_data.borrow().get(hash).unwrap().data())?;
             } else {
                 // Otherwise pull from previous package.
                 // Consider moving this to not load entire file on move.
@@ -277,16 +291,17 @@ impl EvidencePackage {
 
         // Write manifest. This has to be done last to ensure media is scrubbed as needed.
         let manifest_data = serde_json::to_string(&clone).map_err(Error::FailedToCreatePackage)?;
+        tracing::trace!("Generated package manifest:\n{manifest_data}");
         if !jsonschema::is_valid(
             &serde_json::from_str(MANIFEST_SCHEMA).expect("Schema is validated statically"),
             &serde_json::from_str(&manifest_data).expect("JSON just generated, shouldn't fail"),
         ) {
-            let _ = self.zip.interrupt_write();
+            let _ = zip_ref.interrupt_write();
             return Err(Error::ManifestSchemaValidationFailed);
         }
         zip.start_file("manifest.json", options)?;
         zip.write_all(manifest_data.as_bytes())?;
-        self.zip.conclude_write()?;
+        zip_ref.conclude_write()?;
         Ok(())
     }
 
@@ -347,7 +362,7 @@ impl EvidencePackage {
         for test_case in &evidence_package.test_cases {
             let id = test_case.id();
             let data = zip
-                .by_name(&format!("testcases/{id}.json"))
+                .by_name(&format!("test_cases/{id}.json"))
                 .map_err(|_| Error::CorruptEvidencePackage(format!("missing test case {id}")))?;
             let test_case_data = {
                 let mut buf_test_case = BufReader::new(data);
@@ -363,7 +378,7 @@ impl EvidencePackage {
                     .map_err(|_| Error::TestCaseSchemaValidationFailed)?,
             ) {
                 // Read as version 1
-                tracing::debug!("Test case {id} opened as version 1");
+                tracing::debug!("Test case {id} opened as version 2");
                 let mut test_case: TestCase = serde_json::from_str(&test_case_data)
                     .map_err(|e| Error::InvalidTestCase(e, *id))?;
                 test_case.set_id(*id);
@@ -374,15 +389,15 @@ impl EvidencePackage {
             }
         }
 
-        evidence_package.zip = zip_rw;
+        evidence_package.zip = RefCell::new(zip_rw);
         Ok(evidence_package)
     }
 
     /// Clone fields that will be serialized by serde
     fn clone_serde(&self) -> Self {
         Self {
-            zip: ZipReaderWriter::default(),
-            media_data: HashMap::new(),
+            zip: RefCell::new(ZipReaderWriter::default()),
+            media_data: RefCell::new(HashMap::new()),
             test_case_data: HashMap::new(),
 
             schema: Some(MANIFEST_SCHEMA_LOCATION.to_string()),
@@ -447,6 +462,88 @@ impl EvidencePackage {
         Ok(())
     }
 
+    /// Add an attestation for a test case
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error::Attesting`] if an attestation failed to be
+    /// parsed.
+    pub fn attest_test_case(
+        &mut self,
+        test_case: Uuid,
+        secret: &attesting::Secret,
+        header: attesting::RegisteredHeader,
+    ) -> Result<()> {
+        let payload = self
+            .test_case(test_case)?
+            .ok_or(Error::DoesntExist(test_case))?
+            .attestation_payload()
+            .into_bytes();
+        let jws = attesting::Attestation::new_decoded(
+            attesting::Header::from_registered_header(header),
+            payload,
+        );
+        let jws_enc = jws.encode(secret)?.unwrap_encoded();
+        for tc in &mut self.test_cases {
+            if *tc.id() == test_case {
+                #[allow(clippy::to_string_in_format_args, reason = "clippy gets this wrong")]
+                tc.attestations.push(jws_enc.to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Remove the attestation with the given index
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error::Attesting`] if an attestation failed to be
+    /// parsed.
+    pub fn remove_attestation(&mut self, test_case: Uuid, index: usize) -> Result<()> {
+        for tc in &mut self.test_cases {
+            if *tc.id() == test_case {
+                tc.attestations.remove(index);
+                return Ok(());
+            }
+        }
+        Err(Error::DoesntExist(test_case))
+    }
+
+    /// Returns the attestations associated with a test case. It is up
+    /// to you to perform validation on these!
+    ///
+    /// Attestations are returned with a boolean flag whih indicates if
+    /// the attestation payload matches the current state of the test
+    /// case.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error::Attesting`] if an attestation failed to be
+    /// parsed.
+    #[allow(clippy::missing_panics_doc, reason = "manually verified cannot panic")]
+    pub fn test_case_attestations(
+        &self,
+        test_case: Uuid,
+    ) -> Result<Vec<(attesting::Attestation, bool)>> {
+        let payload = self
+            .test_case(test_case)?
+            .ok_or(Error::DoesntExist(test_case))?
+            .attestation_payload()
+            .into_bytes();
+        for tc in &self.test_cases {
+            if *tc.id() == test_case {
+                let attestations = tc
+                    .attestations()
+                    .iter()
+                    .map(|a| attesting::Attestation::new_encoded(a))
+                    .map(|a| (a.clone(), payload == a.unverified_payload().unwrap()))
+                    .collect::<Vec<_>>();
+                return Ok(attestations);
+            }
+        }
+        Err(Error::DoesntExist(test_case))
+    }
+
     /// Create a new test case.
     ///
     /// # Errors
@@ -474,7 +571,7 @@ impl EvidencePackage {
     where
         S: Into<String>,
     {
-        let new_id = uuid::Uuid::new_v4();
+        let new_id = Uuid::now_v7();
 
         // Create new manifest entry
         self.test_cases.push(TestCaseManifestEntry::new(new_id));
@@ -498,7 +595,7 @@ impl EvidencePackage {
             .cloned()
             .ok_or(Error::DoesntExist(case_id_to_duplicate))?;
         let mut new_case = case.clone();
-        let new_id = Uuid::new_v4();
+        let new_id = Uuid::now_v7();
         new_case.set_id(new_id);
 
         // Create new manifest entry
@@ -586,7 +683,7 @@ impl EvidencePackage {
     /// - [`Error::Io`] if the evp couldn't be read at all.
     /// - [`Error::Zip`] if the evp file couldn't be read correctly.
     #[allow(clippy::missing_panics_doc)]
-    pub fn add_media(&mut self, media_file: MediaFile) -> Result<&MediaFile> {
+    pub fn add_media(&mut self, media_file: MediaFile) -> Result<MediaFile> {
         let hash = media_file.hash();
 
         if !self
@@ -600,7 +697,9 @@ impl EvidencePackage {
 
             // Insert data and return reference
             tracing::trace!("New media cache entry: {hash}");
-            self.media_data.insert(hash.clone(), media_file);
+            self.media_data
+                .borrow_mut()
+                .insert(hash.clone(), media_file);
         }
 
         Ok(self.get_media(&hash)?.unwrap())
@@ -617,20 +716,21 @@ impl EvidencePackage {
     /// - [`Error::Io`] if the evp couldn't be read at all.
     /// - [`Error::Zip`] if the evp file couldn't be read correctly.
     #[allow(clippy::missing_panics_doc)]
-    pub fn get_media<S>(&mut self, hash: S) -> Result<Option<&MediaFile>>
+    pub fn get_media<S>(&self, hash: S) -> Result<Option<MediaFile>>
     where
         S: Into<String>,
     {
         let hash = hash.into();
 
         // Check in-memory cache
-        if self.media_data.contains_key(&hash) {
+        if self.media_data.borrow().contains_key(&hash) {
             tracing::debug!("{hash} found in cache.");
-            return Ok(self.media_data.get(&hash));
+            return Ok(self.media_data.borrow().get(&hash).cloned());
         }
 
         // Read from ZIP file
-        let zip = self.zip.as_reader()?;
+        let mut zip = self.zip.borrow_mut();
+        let zip = zip.as_reader()?;
         let res = zip.by_name(&format!("media/{}", hash.clone()));
         match res {
             Ok(file) => {
@@ -645,10 +745,10 @@ impl EvidencePackage {
                 // Add to in-memory cache
                 let media: MediaFile = buf.into();
                 tracing::trace!("New media cache entry: {hash}");
-                self.media_data.insert(hash.clone(), media);
+                self.media_data.borrow_mut().insert(hash.clone(), media);
 
                 // Return cached version
-                Ok(Some(self.media_data.get(&hash).unwrap()))
+                Ok(Some(self.media_data.borrow().get(&hash).cloned().unwrap()))
             }
             Err(ZipError::FileNotFound) => {
                 tracing::warn!("{hash} not found in package!");

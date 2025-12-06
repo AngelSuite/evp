@@ -4,6 +4,8 @@ use uuid::Uuid;
 
 use std::{collections::HashMap, fmt};
 
+use crate::prelude::*;
+
 /// [`EvidencePackage`](super::EvidencePackage) metadata.
 #[derive(Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
@@ -21,11 +23,12 @@ pub struct Metadata {
 
     /// Custom metadata fields for test cases
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "custom_test_case_metadata")]
     #[allow(
         clippy::struct_field_names,
         reason = "This field refers to the name of it's subtype"
     )]
-    pub(super) custom_test_case_metadata: Option<HashMap<String, CustomMetadataField>>,
+    pub(super) custom_metadata: Option<HashMap<String, CustomMetadataField>>,
 
     /// Extra fields that this implementation doesn't understand.
     #[get = "pub"]
@@ -37,11 +40,11 @@ impl Metadata {
     /// Get a mutable reference to custom metadata fields for test cases
     #[allow(clippy::missing_panics_doc, reason = "safety is explained inline")]
     pub fn custom_test_case_metadata_mut(&mut self) -> &mut HashMap<String, CustomMetadataField> {
-        if self.custom_test_case_metadata.is_none() {
-            self.custom_test_case_metadata = Some(HashMap::new());
+        if self.custom_metadata.is_none() {
+            self.custom_metadata = Some(HashMap::new());
         }
         // SAFETY: just initialised if wasn't previously
-        self.custom_test_case_metadata.as_mut().unwrap()
+        self.custom_metadata.as_mut().unwrap()
     }
 
     /// Create a new custom metadata field
@@ -61,7 +64,7 @@ impl Metadata {
             }
         }
 
-        let new_id = id.unwrap_or_else(|| Uuid::new_v4().to_string());
+        let new_id = id.unwrap_or_else(|| Uuid::now_v7().to_string());
         let field = CustomMetadataField {
             name,
             description,
@@ -119,6 +122,16 @@ impl fmt::Display for Author {
     }
 }
 
+impl<S1: Into<String>, S2: Into<String>> From<(S1, S2)> for Author {
+    fn from((name, email): (S1, S2)) -> Self {
+        Self {
+            name: name.into(),
+            email: Some(email.into()),
+            extra_fields: HashMap::new(),
+        }
+    }
+}
+
 /// A custom metadata field for [`TestCase`](super::test_cases::TestCase)s.
 #[derive(Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize, PartialEq, Eq)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
@@ -169,8 +182,8 @@ pub(super) struct MediaFileManifestEntry {
     extra_fields: HashMap<String, serde_json::Value>,
 }
 
-impl From<&crate::MediaFile> for MediaFileManifestEntry {
-    fn from(value: &crate::MediaFile) -> Self {
+impl From<&MediaFile> for MediaFileManifestEntry {
+    fn from(value: &MediaFile) -> Self {
         Self {
             sha256_checksum: value.hash(),
             mime_type: value
@@ -189,7 +202,10 @@ impl From<&crate::MediaFile> for MediaFileManifestEntry {
 pub(super) struct TestCaseManifestEntry {
     /// A string to reference the test case internally. Usually a UUID.
     #[serde(alias = "name")] // Compatibility with previous pre-RFC field name `name`.
-    id: Uuid,
+    pub(super) id: Uuid,
+
+    /// Attestations over the associated test case
+    pub(super) attestations: Vec<String>,
 
     /// Extra fields that this implementation doesn't understand.
     #[get = "pub"]
@@ -202,6 +218,7 @@ impl TestCaseManifestEntry {
     pub(super) fn new(id: Uuid) -> Self {
         Self {
             id,
+            attestations: vec![],
             extra_fields: HashMap::new(),
         }
     }

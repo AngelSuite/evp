@@ -1,7 +1,7 @@
 [package]
 name = "evp"
 description = "Library to work with evidence packages (*.evp)."
-version = "1.0.0-beta.3" # 1.0.0 here means the I-D is accepted or concluded
+version = "1.0.0-beta.4" # 1.0.0 here means the I-D is accepted or concluded
 edition = "2024"
 license = "GPL-3.0-or-later"
 authors = [
@@ -14,33 +14,31 @@ rust-version = "1.88.0"
 
 [features]
 default = ["exporter-html", "exporter-zip-of-files"]
-exporter-excel = ["dep:rust_xlsxwriter"]
-exporter-html = ["dep:build_html", "dep:html-escape"]
+exporter-excel = ["dep:markdown", "dep:rust_xlsxwriter"]
+exporter-html = ["dep:build_html", "dep:html-escape", "dep:markdown"]
 exporter-zip-of-files = []
 
 [dependencies]
 base64 = "0.22.1"
+biscuit = "0.7.0"
 build_html = { version = "2.5.0", optional = true }
 chrono = { version = "0.4.38", features = ["serde"] }
 getset = "0.1.2"
 html-escape = { version = "0.2.13", optional = true }
 infer = "0.19.0"
-jsonschema = "0.33.0"
-rust_xlsxwriter = { version = "0.90.0", features = ["chrono"], optional = true }
+jsonschema = "0.37.4"
+markdown = { version = "1.0.0", optional = true }
+rust_xlsxwriter = { version = "0.92.2", features = ["chrono"], optional = true }
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = "1.0.116"
+serde_json_canonicalizer = "0.3.1"
 sha256 = "1.5.0"
 thiserror = "2.0.4"
 tracing = "0.1.41"
-uuid = { version = "1.8.0", features = ["v4", "fast-rng", "serde"] }
-zip = "5.1.1"
+uuid = { version = "1.8.0", features = ["v7", "fast-rng", "serde"] }
+zip = "6.0.0"
 
-# Remove when AngelMark deprecated
-pest = "2.7.15"
-# Remove when AngelMark deprecated
-pest_derive = "2.7.15"
-# Remove when AngelMark deprecated
-regex = "1.11.1"
-
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3.9", features = ["fileapi", "winnt"] }
+[dev-dependencies]
+outdir-tempdir = "0.2.0"
+rand = "0.9.2"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }

@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-/// An error raised by `EvidenceAngel`.
+/// An error raised by the `evp` library.
 #[derive(Debug, Error)]
 pub enum Error {
     /// You are trying to perform an operation without a lock on the package.
@@ -17,6 +17,10 @@ pub enum Error {
     /// A package error, i.e. raised by the `zip` package.
     #[error("Package error: {0}")]
     Zip(#[from] zip::result::ZipError),
+
+    /// An error from creating or verifying an attestation
+    #[error("Error attesting: {0}")]
+    Attesting(#[from] crate::prelude::attesting::Error),
 
     /// The package is corrupt. See the contained string for more details.
     #[error("The evidence package is corrupt ({0}).")]

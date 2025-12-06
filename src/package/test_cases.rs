@@ -9,11 +9,13 @@ use serde::{
 };
 use uuid::Uuid;
 
+use crate::prelude::{Error, EvidencePackage, Result as EVPResult};
+
 /// The URL for $schema in the test case manifests
 const TESTCASE_SCHEMA_LOCATION: &str =
-    "https://evidenceangel-schemas.hpkns.uk/testcase.1.schema.json";
+    "https://evidenceangel-schemas.hpkns.uk/testcase.2.schema.json";
 /// The schema itself for test case manifests (version 2)
-pub(crate) const TESTCASE_SCHEMA: &str = include_str!("../../schemas/testcase.1.schema.json");
+pub(crate) const TESTCASE_SCHEMA: &str = include_str!("../../schemas/testcase.2.schema.json");
 
 /// A test case stored within an [`EvidencePackage`](super::EvidencePackage).
 #[derive(Clone, Debug, Serialize, Deserialize, Getters, MutGetters, Setters)]
@@ -62,6 +64,17 @@ impl TestCase {
     /// Update the JSON schema tag to the latest schema
     pub(super) fn update_schema(&mut self) {
         self.schema = Some(TESTCASE_SCHEMA_LOCATION.to_string());
+    }
+
+    /// Generate the data needed for signing an attestation of this test
+    /// case, in it's current state.
+    #[allow(
+        clippy::missing_panics_doc,
+        reason = "safety is statically checked by me"
+    )]
+    #[must_use]
+    pub fn attestation_payload(&self) -> String {
+        sha256::digest(serde_json_canonicalizer::to_string(&self).unwrap())
     }
 }
 
@@ -112,8 +125,8 @@ pub enum TestCasePassStatus {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Getters, MutGetters, Setters)]
 #[getset(get = "pub")]
 pub struct Evidence {
-    /// The kind of this evidence.
-    kind: EvidenceKind,
+    /// The MIME type of this evidence.
+    kind: String,
 
     /// The data contained within this piece of evidence.
     #[getset(get_mut = "pub", set = "pub")]
@@ -137,11 +150,12 @@ pub struct Evidence {
 }
 
 impl Evidence {
-    /// Create a new evidence object.
+    /// Create a new evidence object. `kind` must be a valid MIME type
+    /// for the data.
     #[must_use]
-    pub fn new(kind: EvidenceKind, value: EvidenceData) -> Self {
+    pub fn new<S: Into<String>>(kind: S, value: EvidenceData) -> Self {
         Self {
-            kind,
+            kind: kind.into(),
             value,
             caption: None,
             original_filename: None,
@@ -186,21 +200,6 @@ impl Evidence {
     }
 }
 
-/// Kinds of [`Evidence`].
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum EvidenceKind {
-    /// A text entry.
-    Text,
-    /// A rich text (`AngelMark`) entry.
-    RichText,
-    /// An image.
-    Image,
-    /// An attached file.
-    File,
-    /// An HTTP request and response.
-    Http,
-}
-
 /// Data in a piece of [`Evidence`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EvidenceData {
@@ -214,9 +213,9 @@ pub enum EvidenceData {
         /// The raw data which will be encoded as base64 automatically when saved.
         data: Vec<u8>,
     },
-    /// A [`MediaFile`](crate::MediaFile). This is useful for large files that would be unreasonable to store as text or base64.
+    /// A [`MediaFile`](crate::prelude::MediaFile). This is useful for large files that would be unreasonable to store as text or base64.
     Media {
-        /// The hash of the [`MediaFile`](crate::MediaFile) that should be referred to. Note that you are responsible for adding
+        /// The hash of the [`MediaFile`](crate::prelude::MediaFile) that should be referred to. Note that you are responsible for adding
         /// a media file of the appropriate type to the package.
         hash: String,
     },
@@ -227,15 +226,15 @@ impl EvidenceData {
     ///
     /// # Errors
     ///
-    /// - [`crate::Error::MediaMissing`] if the media referred to by the requested data is missing from the package.
-    pub fn get_data(&self, package: &mut crate::EvidencePackage) -> crate::Result<Vec<u8>> {
+    /// - [`Error::MediaMissing`] if the media referred to by the requested data is missing from the package.
+    pub fn get_data(&self, package: &mut EvidencePackage) -> EVPResult<Vec<u8>> {
         match self {
             Self::Text { content } => Ok(content.clone().into_bytes()),
             Self::Base64 { data } => Ok(data.clone()),
             Self::Media { hash } => package
                 .get_media(hash)?
                 .map(|mf| mf.data().clone())
-                .ok_or(crate::Error::MediaMissing(hash.clone())),
+                .ok_or(Error::MediaMissing(hash.clone())),
         }
     }
 }
