@@ -9,11 +9,11 @@ submissionType = "independent"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-hopkins-evp-spec-08"
+value = "draft-hopkins-evp-spec-09"
 stream = "independent"
 status = "informational"
 
-date = 2025-12-06T00:00:00Z
+date = 2025-12-08T00:00:00Z
 
 [[author]]
 initials="L."
@@ -219,7 +219,8 @@ As a worked example, a test case may start off like this:
 
 ~~~json
 {
-  "$schema": "https://evidenceangel-schemas.hpkns.uk/testcase.2.schema.json",
+  "$schema":
+    "https://evidenceangel-schemas.hpkns.uk/testcase.2.schema.json",
   "metadata": {
     "title": "Test Case",
     "execution_datetime": "2025-12-05T20:40:22.743821295Z",
@@ -234,10 +235,15 @@ As a worked example, a test case may start off like this:
 }
 ~~~
 
-This should then be canonicalised:
+This should then be canonicalised. This is shown below, but newlines
+have been added for presentation, indicated with a "\" character at the
+line end.
 
 ~~~json
-{"$schema":"https://evidenceangel-schemas.hpkns.uk/testcase.2.schema.json","evidence":[{"kind":"text/plain","value":"plain:Hello, world!"}],"metadata":{"execution_datetime":"2025-12-05T20:40:22.743821295Z","passed":null,"title":"Test Case"}}
+{"$schema":"https://evidenceangel-schemas.hpkns.uk/testcase.2.schema\
+.json","evidence":[{"kind":"text/plain","value":"plain:Hello, world!\
+"}],"metadata":{"execution_datetime":"2025-12-05T20:40:22.743821295Z\
+","passed":null,"title":"Test Case"}}
 ~~~
 
 A SHA256 checksum can be generated:
@@ -252,9 +258,12 @@ This can now be signed and the original manifest can be modified:
 {
   "id": "7928de11-8de8-4bfe-b5b7-cbf07c7066d9",
   "attestations": [
-    "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.YmI5YzdkMjczYWY2NzE5NWM1MWM1N2YyNzRjMDc5NTViODZiMDA3MWE0MDU3MWFjOTIwYzE2M2UzNDQxYzUwZQ.KtbRLfAh8UmSxSWYnObpydXyjGO_IPF2acU_x-eFY6dLDBD809zJm6HaTE9jjsQlnX8eGWRIOzKXTWMdgp-fXg"
+    "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.YmI5YzdkMjczYWY2NzE5NWM1MW\
+    M1N2YyNzRjMDc5NTViODZiMDA3MWE0MDU3MWFjOTIwYzE2M2UzNDQxYzUwZQ.Ktb\
+    RLfAh8UmSxSWYnObpydXyjGO_IPF2acU_x-eFY6dLDBD809zJm6HaTE9jjsQlnX8\
+    eGWRIOzKXTWMdgp-fXg"
   ],
-  "some_other_value": "Added from somewhere other than this specification!"
+  "some_other_value": "Added from somewhere other than this spec!"
 }
 ~~~
 
@@ -478,13 +487,15 @@ example.evp
   "custom_metadata": {
     "example": {
       "name": "Example Metadata Field",
-      "description": "A field showing that custom fields can be added",
+      "description":
+        "A field showing that custom fields can be added",
       "primary": true
     }
   },
   "media": [
     {
-      "sha256_checksum": "203073da0b36a5921f2914e2093abcae7eb987846f405b438c25792bab1617fa",
+      "sha256_checksum":
+  "203073da0b36a5921f2914e2093abcae7eb987846f405b438c25792bab1617fa",
       "mime_type": "text/plain"
     }
   ],
@@ -492,7 +503,10 @@ example.evp
     {
       "id": "eabb5d31-a958-4609-ac98-83365e14d18b",
       "attestations": [
-        "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.YmI5YzdkMjczYWY2NzE5NWM1MWM1N2YyNzRjMDc5NTViODZiMDA3MWE0MDU3MWFjOTIwYzE2M2UzNDQxYzUwZQ.KtbRLfAh8UmSxSWYnObpydXyjGO_IPF2acU_x-eFY6dLDBD809zJm6HaTE9jjsQlnX8eGWRIOzKXTWMdgp-fXg"
+        "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.YmI5YzdkMjczYWY2NzE5NW\
+        M1MWM1N2YyNzRjMDc5NTViODZiMDA3MWE0MDU3MWFjOTIwYzE2M2UzNDQxYz\
+        UwZQ.KtbRLfAh8UmSxSWYnObpydXyjGO_IPF2acU_x-eFY6dLDBD809zJm6H\
+        aTE9jjsQlnX8eGWRIOzKXTWMdgp-fXg"
       ]
     }
   ]
@@ -513,22 +527,25 @@ example.evp
   },
   "evidence": [
     {
-      "kind":"text/plain",
-      "value":"plain:This is some text based evidence"
+      "kind": "text/plain",
+      "value": "plain:This is some text based evidence"
     },
     {
-      "kind":"text/plain",
-      "value":"base64:VGhpcyBpcyBzb21lIHRleHQgYmFzZWQgYmFzZTY0IGVuY29kZWQgZXZpZGVuY2U"
+      "kind": "text/plain",
+      "value": "base64:VGhpcyBpcyBzb21lIHRleHQgYmFzZWQgYmFzZTY0IGVuY\
+        29kZWQgZXZpZGVuY2U"
     },
     {
-      "kind":"text/plain",
-      "value":"media:203073da0b36a5921f2914e2093abcae7eb987846f405b438c25792bab1617fa",
+      "kind": "text/plain",
+      "value": "media:203073da0b36a5921f2914e2093abcae7eb987846f405b\
+        438c25792bab1617fa",
       "caption": "An example file",
       "original_filename": "example.txt"
     },
     {
       "kind":"image/png",
-      "value":"media:c561967275f002e65b222b4577378f5a20a5881edd00fbe648beef6b4f4971a9",
+      "value": "media:c561967275f002e65b222b4577378f5a20a5881edd00fb\
+        e648beef6b4f4971a9",
       "caption": "An example image",
       "original_filename": "image.png"
     }
@@ -538,8 +555,231 @@ example.evp
 
 # JSON Schema for Package Manifest
 
-<{{manifest.2.schema.json}}
+In this snippet, some newlines are added for presentation. These are
+denoted with a "\" at the end of the preceding line and should be
+considered excluded from the JSON.
+
+~~~json
+{
+  "$id":
+    "https://evidenceangel-schemas.hpkns.uk/manifest.2.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "type": "object",
+  "description":
+"The metadata file `metadata.json` as part of an evidence package.",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The name of the evidence package.",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "authors": {
+          "type": "array",
+          "description":
+            "The authors attributed to this evidence package.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "The author's name."
+              },
+              "email": {
+                "type": "string",
+                "description":
+      "The author's email address, although format is not verified."
+              }
+            },
+            "required": ["name"]
+          }
+        },
+        "description": {
+          "type": "string",
+          "description": "An optional description of the package."
+        }
+      },
+      "required": ["title", "authors"]
+    },
+    "custom_metadata": {
+      "type": "object",
+      "description": "Custom metadata fields for test cases",
+      "patternProperties": {
+        ".+": {
+          "type": "object",
+          "description": "A custom metadata field",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description":
+                "A user-friendly name for this custom property."
+            },
+            "description": {
+              "type": "string",
+              "description":
+                "A description for this custom property."
+            },
+            "primary": {
+              "type": "boolean",
+              "description": "Is this custom property the main one \
+                in this package? This may influence how it is \
+                displayed in editors."
+            }
+          },
+          "required": ["name", "description", "primary"]
+        }
+      }
+    },
+    "media": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "description": "A media entry. When an entry is present in \
+          this manifest, it MUST also be present in the `media`\
+          directory of the package.",
+        "properties": {
+          "sha256_checksum": {
+            "type": "string",
+            "description": "The SHA256 checksum of the media file. \
+              This MUST also match identically the name of the file \
+              with no extension in the `media` directory.",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "mime_type": {
+            "type": "string",
+            "description": "The MIME type of the media file."
+          }
+        },
+        "required": ["sha256_checksum", "mime_type"]
+      }
+    },
+    "test_cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The UUID of the test case. If present \
+              here, there MUST be an associated test case file in \
+              the `testcases` directory of the package with the name\
+              `<UUID>.json`."
+          },
+          "attestations": {
+            "type": "array",
+            "description":
+              "An array of attestations over this test case.",
+            "items": {
+              "type": "string",
+              "description": "The elements within the \
+                \"attestations\" array **MUST** be JWS [RFC7515] \
+                signatures. The signature payload must be a SHA256 \
+                checksum of a copy of the test case manifest (i.e. \
+                the file \"uuid.json\"), having been processed into \
+                JSON canonical format as defined in [RFC8785].",
+              "pattern": "^[A-z0-9_-]+\\.[A-z0-9_-]+\\.[A-z0-9_-]+$"
+            }
+          }
+        },
+        "required": ["id", "attestations"]
+      }
+    }
+  },
+  "required": ["metadata", "media", "test_cases"]
+}
+~~~
 
 # JSON Schema for Test Case Manifest
 
-<{{testcase.2.schema.json}}
+In this snippet, some newlines are added for presentation. These are
+denoted with a "\" at the end of the preceding line and should be
+considered excluded from the JSON.
+
+~~~json
+{
+  "$id":
+    "https://evidenceangel-schemas.hpkns.uk/testcase.2.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "type": "object",
+  "description": "A test case file `testcases/<UUID>.json` as part \
+    of an evidence package.",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the test case",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "execution_datetime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time of the execution of \
+            this test case starting."
+        },
+        "passed": {
+          "type": ["string", "null"],
+          "description": "The state of the test case",
+          "enum": [
+            "pass",
+            "fail",
+            null
+          ]
+        },
+        "custom": {
+          "type": "object",
+          "description": "Custom metadata values",
+          "patternProperties": {
+            ".+": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": ["title", "execution_datetime"]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "description":
+          "A piece of evidence as part of this test case.",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description":
+              "The Internet Media Type of the data stored.",
+            "pattern": "^(\\w*)\\/([\\w\\.-]*)(\\+([\\w\\.-]*))?\
+              (;((.+)=(.*);)*(.+)=(.*))?$"
+          },
+          "value": {
+            "type": "string",
+            "description": "Either `plain:` followed by plain text, \
+              `media:` followed by a media SHA256 hash, or `base64:`\
+              followed by a base64 string of data without padding.",
+            "pattern":
+            "^(plain:.*)|(media:[0-9a-f]{64})|(base64:[A-z0-9+/]*)$"
+          },
+          "caption": {
+            "type": "string",
+            "description":
+              "An optional caption for this piece of evidence."
+          },
+          "original_filename": {
+            "type": "string",
+            "description": "The original filename for File evidence"
+          }
+        },
+        "required": ["kind", "value"]
+      }
+    }
+  },
+  "required": ["metadata", "evidence"]
+}
+~~~
