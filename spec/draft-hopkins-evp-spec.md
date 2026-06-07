@@ -9,11 +9,11 @@ submissionType = "independent"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-hopkins-evp-spec-09"
+value = "draft-hopkins-evp-spec-10"
 stream = "independent"
 status = "informational"
 
-date = 2025-12-08T00:00:00Z
+date = 2026-06-07T00:00:00Z
 
 [[author]]
 initials="L."
@@ -135,10 +135,9 @@ See an example manifest.json file in (#example-manifest).
 ### "$schema" Element {#manifest-schema}
 
 This element **MAY** optionally be provided to point to a JSON schema
-describing the structure of the file. This is typically most useful for
-validation, however it **MUST** be acceptable for it to be missing, and
-this specification should be seen as the primary definition of structure
-over anything defined in the linked schema.
+describing the structure of the file. However this specification should
+be seen as the primary definition of structure over anything defined in
+the linked schema.
 
 The JSON schema provided at by this element may give details about any
 additional fields used that are not defined in this specification.
@@ -193,7 +192,7 @@ it.
 
 | Element    | Condition | Type | Section | Description |
 |------------|-----------|------|---------|---|
-| id         | Mandatory | String | | The UUID of the test case. If present here, there **MUST** be an associated test case file in the "test_cases" directory of the package with the name "<UUID>.json". |
+| id         | Mandatory | String | | The UUID [@!RFC9562] of the test case. If present here, there **MUST** be an associated test case file in the "test_cases" directory of the package with the name "<UUID>.json". |
 | attestations | Mandatory | Array of Strings | (#manifest-test-case-attestations) | An array of attestations over this test case. |
 
 #### "attestations" Array {#manifest-test-case-attestations}
@@ -289,10 +288,9 @@ See an example <uuid>.json file in (#example-test-case).
 #### "$schema" Element {#test-case-schema}
 
 This element **MAY** optionally be provided to point to a JSON schema
-describing the structure of the file. This is typically most useful for
-validation, however it **MUST** be acceptable for it to be missing, and
-this specification should be seen as the primary definition of structure
-over anything defined in the linked schema.
+describing the structure of the file. However this specification should
+be seen as the primary definition of structure over anything defined in
+the linked schema.
 
 The JSON schema provided at by this element may give details about any
 additional fields used that are not defined in this specification.
@@ -358,7 +356,11 @@ an additional media file.
 
 ## Locking
 
-When loading an evidence package, implemetors **MUST** use a lock file
+File locking is used to prevent two users on a networked file system
+from attempting to make changes unknowingly to the same evidence package
+simulataneously, which may result in a loss of data.
+
+When loading an evidence package, implemeters **MUST** use a lock file
 with the file name ".~lock." followed by the full name of the package it
 protects, followed by "#", for example for a package called
 "example.evp", the lock file **MUST** be called ".~lock.example.evp#".
@@ -402,9 +404,9 @@ be displayed to the user disclosing that it has been adjusted for
 security. For example, it is acceptable to strip raw HTML tags before
 rendering.
 
-Other media types **MUST** be supported insofar as being able to extract
-the data from the evidence package so that they can be opened in other
-software.
+Other media types **MUST** be supported at least to the extent that a
+user is able to extract the data from the evidence package for use with
+external software.
 
 ## HTTP Requests {#http-requests}
 
@@ -415,7 +417,7 @@ portion. In other words, the format **MUST** comply with the following
 regular expression:
 
 ~~~regex
-^(?<request>[.\r\n]*)\x1e(?<response>[.\r\n]*)$
+^(?<request>[^\x1e]*)\x1e(?<response>[^\x1e]*)$
 ~~~
 
 For example the separator is present at <<1>>:
@@ -435,10 +437,10 @@ Connection: close
 
 Every JSON file within an evidence package **MAY** have new fields
 added, and as such extended behaviours **MAY** be implemented, however
-implementers **MUST** be able to load an evidence package without these
+Implementers **MUST** be able to load an evidence package without these
 additional fields.
 
-When an implementer loads a file with fields it cannot understand, it
+When an Implementer loads a file with fields it cannot understand, it
 **MUST** retain the fields on saving the file.
 
 # IANA Considerations
@@ -452,6 +454,11 @@ text/vnd.angel.http-data is defined in (#http-requests).
 The evidence package format can store arbitrary files that may or may
 not be executable. implementers **MUST NOT** execute any file contained
 within and **SHALL** only extract the contained files if needed.
+
+The same security concerns can occur from the ZIP container, for example
+ZIP bombs. This risk should be reduced for files that are from a trusted
+source, however evidence packages from the internet could demonstrate
+this risk.
 
 Otherwise, there are no concerns for security from the file type itself.
 
@@ -566,7 +573,7 @@ considered excluded from the JSON.
   "$schema": "http://json-schema.org/draft-07/schema",
   "type": "object",
   "description":
-"The metadata file `metadata.json` as part of an evidence package.",
+"The manifest file `manifest.json` as part of an evidence package.",
   "properties": {
     "metadata": {
       "type": "object",
@@ -681,7 +688,7 @@ considered excluded from the JSON.
                 checksum of a copy of the test case manifest (i.e. \
                 the file \"uuid.json\"), having been processed into \
                 JSON canonical format as defined in [RFC8785].",
-              "pattern": "^[A-z0-9_-]+\\.[A-z0-9_-]+\\.[A-z0-9_-]+$"
+              "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
             }
           }
         },
@@ -764,7 +771,7 @@ considered excluded from the JSON.
               `media:` followed by a media SHA256 hash, or `base64:`\
               followed by a base64 string of data without padding.",
             "pattern":
-            "^(plain:.*)|(media:[0-9a-f]{64})|(base64:[A-z0-9+/]*)$"
+            "^(plain:.*)|(media:[0-9a-f]{64})|(base64:[A-Za-z0-9+/]*)$"
           },
           "caption": {
             "type": "string",
